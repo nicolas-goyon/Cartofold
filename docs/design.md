@@ -1,0 +1,72 @@
+# Cartofold design
+
+Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine to all the maps of the game: the minimap, the map of the world (key M), the paper maps and the map frames of the other mods. The other mods add layers to all these maps with an API.
+
+## Principles
+
+- One engine: all the views use the same data, the same tiles and the same projection.
+- The server owns the data: the server records the exploration and sends it to the clients. Cartofold is necessary on the server and on the client.
+- No dependency: Cartofold does not need another mod. The other mods depend on Cartofold, as a required or an optional dependency.
+- No change of the vanilla textures: the views draw their own textures. Thus the mods that change the vanilla maps (for example the atlas of the maps of ImmediatelyFast) do not stop Cartofold.
+- No generation of chunks: the exploration reads only the chunks that the server has.
+
+## Map engine
+
+### Exploration data
+
+- The server records the map colors of the chunks near each player, as the vanilla maps do: the map color of the top block of each column, the depth of the water and the height for the shading.
+- The data is for each player. A later feature can share the exploration in a team.
+- The storage: regions of 512 x 512 blocks, one folder for each dimension, in the folder of the world (`data/cartofold/`). A region file has the colors and the heights of its explored columns, and a mask of the explored columns.
+- A worker thread reads the chunks and writes the regions. The server thread only gives it the chunks.
+- The server sends to each client the regions near the player, and the regions that a view asks for (the map of the world). It sends only the changes after the first send.
+- The caves and the dimensions with a ceiling (the Nether) need a view at the height of the player. This is an open point.
+
+### Tiles
+
+- The client makes the textures from the regions: one texture for each region, and textures with less detail for the small scales.
+- A change of a region updates only its textures. A cache keeps the textures near the views and frees the others.
+
+### Map view
+
+- A view draws the tiles in a rectangle of the screen, with a center, a scale and a rotation. The projection gives the pixel of a block and the block of a pixel.
+- The view then draws the layers, in their order, and the markers.
+- The minimap, the map of the world, the paper maps and the map frames use the same view.
+
+## Views
+
+- **Minimap**: on the screen, square or round, with zoom levels, the north, the player arrow and the coordinates. A key shows and hides it. The player selects the corner of the screen.
+- **Map of the world** (key M): move with the mouse and the keys, zoom with the wheel, center on the player, the coordinates under the mouse.
+- **Waypoints of the player**: a name, a color, a position. The minimap and the map of the world show them. A death adds a waypoint.
+- **Settings of the client**: the minimap, the map of the world and the visibility of the layers.
+
+## Layer API
+
+- A layer draws on all the views: fills and borders of chunks (for example territories), lines (for example routes), markers with an icon, a name, a tooltip and a click.
+- Each layer has an order and a visibility for each kind of view (minimap, map of the world, paper maps, frames). The player can hide a layer in the settings.
+- A mod of the server gives the data of its layer to the clients with a payload of Cartofold. The client keeps the data of the layers of each dimension.
+- A **map frame** is a widget for the screens of the other mods: a map view with a selection of layers, a center and a scale. For example the journal and the admin screen of Folkhold.
+- The API is in its own package, with Javadoc. The jar is in GitHub Packages.
+
+## Paper maps
+
+- The paper maps of Cartofold take the place of the vanilla maps. The recipe of the empty map gives the empty map of Cartofold. A vanilla map in the cartography table becomes a map of Cartofold.
+- A paper map has a center, a scale and the explored pixels. Its pixels are the pixels that its holders explore while they hold it.
+- In the hand and in an item frame, the map engine draws the map with its layers. The layers show only on the explored pixels.
+- **Waypoints**: a player marks a place on a map from a block, as with a banner. Another mod adds its own blocks with the API (for example the heart of a village of Folkhold).
+- **Spyglass**: a player with a spyglass in the inventory explores the map in the hand farther. The update reads only the loaded chunks.
+- **Cartography table**: zoom, copy and lock, as the vanilla table. It also moves a zoomed-out map by half of its side in a direction (the game puts the center of a map on a fixed grid), and updates a map at a distance from the chunks that are already generated, with a cost and a limit of chunks.
+
+## Compatibility
+
+- ImmediatelyFast and Moonlight change the rendering of the vanilla maps. Cartofold draws its own textures, so they do not change the maps of Cartofold.
+- Xaero's Minimap and Xaero's World Map can stay with Cartofold. The modpack of Folkhold uses Cartofold in their place when the minimap and the map of the world of Cartofold are ready.
+
+## Roadmap
+
+| Milestone | Scope |
+| --- | --- |
+| M0 · Foundations | The Gradle project, the CI, the conventions, this document, the release workflow |
+| M1 · Map engine | The exploration data on the server, the tiles, the map view |
+| M2 · Minimap and world map | The minimap, the map of the world, the waypoints of the player, the settings |
+| M3 · Layer API | The layers of the other mods, the map frames, the publication of the API |
+| M4 · Paper maps | The paper maps, their waypoints, the spyglass, the cartography table |

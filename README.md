@@ -6,7 +6,7 @@ Cartofold is a map mod for Minecraft (NeoForge 1.21.1). It gives one map engine 
 - paper maps that replace the vanilla maps, with waypoints and a cartography table that moves and updates them;
 - an API for the other mods: they add layers to all the maps (for example territories, routes, markers) and show a map frame in their own screens.
 
-The mod does not depend on other mods.
+The mod does not depend on other mods. It is necessary on the server and on the client: the server records the exploration.
 
 ## Status
 
