@@ -1,3 +1,15 @@
 {
-  "fml.menu.mods.info.description.cartofold": "Un seul moteur de carte pour la mini-carte, la carte du monde, les cartes papier et les cartes des autres mods."
+  "fml.menu.mods.info.description.cartofold": "Un seul moteur de carte pour la mini-carte, la carte du monde, les cartes papier et les cartes des autres mods.",
+  "key.categories.cartofold": "Cartofold",
+  "key.cartofold.toggle_minimap": "Afficher ou masquer la mini-carte",
+  "key.cartofold.zoom_in": "Zoomer la mini-carte",
+  "key.cartofold.zoom_out": "Dézoomer la mini-carte",
+  "cartofold.configuration.minimap": "Mini-carte",
+  "cartofold.configuration.minimap.enabled": "Afficher la mini-carte",
+  "cartofold.configuration.minimap.shape": "Forme",
+  "cartofold.configuration.minimap.corner": "Coin de l'écran",
+  "cartofold.configuration.minimap.size": "Taille",
+  "cartofold.configuration.minimap.zoom": "Niveau de zoom",
+  "cartofold.configuration.minimap.rotate": "Tourner avec le joueur",
+  "cartofold.configuration.minimap.coordinates": "Afficher les coordonnées"
 }
