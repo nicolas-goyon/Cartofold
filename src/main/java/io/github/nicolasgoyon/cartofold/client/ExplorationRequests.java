@@ -20,9 +20,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Tells the server the regions near the player: the server then sends their explored chunks (see
- * {@link ClientExploration}). The client sends a new request when the player goes into other regions or into another
- * dimension.
+ * Tells the server the regions near the player and the regions of the open view (the map of the world): the server
+ * then sends their explored chunks (see {@link ClientExploration}). The client sends a new request when these regions
+ * change.
  */
 @EventBusSubscriber(modid = Cartofold.MOD_ID, value = Dist.CLIENT)
 public final class ExplorationRequests {
@@ -35,6 +35,9 @@ public final class ExplorationRequests {
     private static ResourceKey<Level> lastDimension;
     private static List<RegionPos> lastRegions = List.of();
     private static int ticks;
+    @Nullable
+    private static ResourceKey<Level> viewDimension;
+    private static List<RegionPos> viewRegions = List.of();
 
     private ExplorationRequests() {
     }
@@ -52,6 +55,17 @@ public final class ExplorationRequests {
         return regions;
     }
 
+    /**
+     * Sets the regions that a view shows, in addition to the regions near the player. The next request has them.
+     *
+     * @param dimension the dimension of the view, or null when no view is open
+     * @param regions   the regions of the view
+     */
+    public static void view(@Nullable ResourceKey<Level> dimension, List<RegionPos> regions) {
+        viewDimension = dimension;
+        viewRegions = List.copyOf(regions);
+    }
+
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         if (++ticks % CHECK_TICKS != 0) {
@@ -64,7 +78,9 @@ public final class ExplorationRequests {
             return;
         }
         ResourceKey<Level> dimension = player.level().dimension();
-        List<RegionPos> regions = regionsNear(player.getBlockX(), player.getBlockZ());
+        List<RegionPos> near = regionsNear(player.getBlockX(), player.getBlockZ());
+        List<RegionPos> regions = ExplorationRequestPayload.combine(near,
+                dimension.equals(viewDimension) ? viewRegions : List.of());
         if (!dimension.equals(lastDimension) || !regions.equals(lastRegions)) {
             lastDimension = dimension;
             lastRegions = regions;
@@ -76,6 +92,7 @@ public final class ExplorationRequests {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         lastDimension = null;
         lastRegions = List.of();
+        view(null, List.of());
         ClientExploration.get().clear();
     }
 }

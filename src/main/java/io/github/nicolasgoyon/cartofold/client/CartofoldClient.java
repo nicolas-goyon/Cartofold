@@ -25,6 +25,7 @@ public final class CartofoldClient {
     public static final KeyMapping TOGGLE_MINIMAP = key("toggle_minimap", GLFW.GLFW_KEY_Y);
     public static final KeyMapping ZOOM_IN = key("zoom_in", GLFW.GLFW_KEY_RIGHT_BRACKET);
     public static final KeyMapping ZOOM_OUT = key("zoom_out", GLFW.GLFW_KEY_LEFT_BRACKET);
+    public static final KeyMapping OPEN_MAP = key("open_map", GLFW.GLFW_KEY_M);
 
     private CartofoldClient() {
     }
@@ -39,6 +40,7 @@ public final class CartofoldClient {
         event.register(TOGGLE_MINIMAP);
         event.register(ZOOM_IN);
         event.register(ZOOM_OUT);
+        event.register(OPEN_MAP);
     }
 
     @SubscribeEvent
@@ -49,8 +51,14 @@ public final class CartofoldClient {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        if (Minecraft.getInstance().player == null) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
             return;
+        }
+        while (OPEN_MAP.consumeClick()) {
+            if (minecraft.screen == null) {
+                minecraft.setScreen(new WorldMapScreen(minecraft.player));
+            }
         }
         while (TOGGLE_MINIMAP.consumeClick()) {
             CartofoldClientConfig.MINIMAP.set(!CartofoldClientConfig.MINIMAP.get());

@@ -11,5 +11,9 @@
   "cartofold.configuration.minimap.size": "Size",
   "cartofold.configuration.minimap.zoom": "Zoom level",
   "cartofold.configuration.minimap.rotate": "Turn with the player",
-  "cartofold.configuration.minimap.coordinates": "Show the coordinates"
+  "cartofold.configuration.minimap.coordinates": "Show the coordinates",
+  "key.cartofold.open_map": "Open the map of the world",
+  "cartofold.worldmap.title": "Map of the world",
+  "cartofold.worldmap.coordinates": "X %s, Z %s",
+  "cartofold.worldmap.hint": "Drag: move · Wheel: zoom · Space: center on the player"
 }

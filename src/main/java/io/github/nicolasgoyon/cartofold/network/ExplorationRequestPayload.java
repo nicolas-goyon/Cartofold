@@ -2,6 +2,8 @@ package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -23,7 +25,7 @@ import net.minecraft.world.level.Level;
 public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<RegionPos> regions)
         implements CustomPacketPayload {
     /** The largest number of regions in one request. */
-    public static final int MAX_REGIONS = 64;
+    public static final int MAX_REGIONS = 128;
 
     public static final Type<ExplorationRequestPayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(Cartofold.MOD_ID, "exploration_request"));
@@ -41,6 +43,26 @@ public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<Regio
 
     public ExplorationRequestPayload {
         regions = List.copyOf(regions);
+    }
+
+    /**
+     * The regions of a request: the first regions, then the other regions, with no duplicate. When there are more than
+     * {@link #MAX_REGIONS} regions, the other regions nearest to the center of the other regions stay.
+     *
+     * @param first the regions with the priority (the regions near the player)
+     * @param other the other regions (the regions of a view)
+     * @return the regions, {@link #MAX_REGIONS} at most
+     */
+    public static List<RegionPos> combine(List<RegionPos> first, List<RegionPos> other) {
+        LinkedHashSet<RegionPos> regions = new LinkedHashSet<>(first);
+        if (!other.isEmpty()) {
+            double centerX = other.stream().mapToInt(RegionPos::x).average().orElse(0);
+            double centerZ = other.stream().mapToInt(RegionPos::z).average().orElse(0);
+            other.stream()
+                    .sorted(Comparator.comparingDouble(pos -> Math.hypot(pos.x() - centerX, pos.z() - centerZ)))
+                    .forEach(regions::add);
+        }
+        return regions.stream().limit(MAX_REGIONS).toList();
     }
 
     @Override
