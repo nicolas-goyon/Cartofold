@@ -1,11 +1,7 @@
 package io.github.nicolasgoyon.cartofold.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
@@ -14,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -26,8 +21,6 @@ import org.lwjgl.opengl.GL11;
 public final class Minimap {
     private static final int BACKGROUND = 0xFF101010;
     private static final int BORDER = 0xFF404040;
-    private static final int ARROW = 0xFFFFFFFF;
-    private static final int ARROW_OUTLINE = 0xFF000000;
     private static final int NORTH = 0xFFFF5555;
     private static final int SEGMENTS = 64;
     /** The depth of the mask of the round shape: above the map, so that the map does not go out of the circle. */
@@ -80,7 +73,7 @@ public final class Minimap {
             RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         }
 
-        drawArrow(graphics, centerX, centerY, (float) MinimapLayout.arrowRotation(rotate, yaw));
+        MapShapes.drawArrow(graphics, centerX, centerY, (float) MinimapLayout.arrowRotation(rotate, yaw));
         drawNorth(graphics, font, projection, centerX, centerY, radius, round);
         if (coordinates) {
             Component text = Component.literal(player.getBlockX() + ", " + player.getBlockY() + ", "
@@ -105,32 +98,9 @@ public final class Minimap {
                 NORTH);
     }
 
-    /** Draws the arrow of the player at the center, turned clockwise by an angle. */
-    private static void drawArrow(GuiGraphics graphics, float centerX, float centerY, float angle) {
-        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(centerX, centerY, 0)
-                .rotateZ(angle);
-        BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
-        arrow(buffer, matrix, 1.6f, ARROW_OUTLINE);
-        arrow(buffer, matrix, 1f, ARROW);
-        draw(buffer);
-    }
-
-    private static void arrow(BufferBuilder buffer, Matrix4f matrix, float grow, int color) {
-        float tip = -5f * grow;
-        float side = 3.5f * grow;
-        float back = 4f * grow;
-        float notch = 1.5f * grow;
-        buffer.addVertex(matrix, 0, tip, 0).setColor(color);
-        buffer.addVertex(matrix, -side, back, 0).setColor(color);
-        buffer.addVertex(matrix, 0, notch, 0).setColor(color);
-        buffer.addVertex(matrix, 0, tip, 0).setColor(color);
-        buffer.addVertex(matrix, 0, notch, 0).setColor(color);
-        buffer.addVertex(matrix, side, back, 0).setColor(color);
-    }
-
     private static void fillDisc(GuiGraphics graphics, float centerX, float centerY, float radius, int color) {
         Matrix4f matrix = graphics.pose().last().pose();
-        BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
+        BufferBuilder buffer = MapShapes.begin(VertexFormat.Mode.TRIANGLES);
         for (int i = 0; i < SEGMENTS; i++) {
             double from = 2 * Math.PI * i / SEGMENTS;
             double to = 2 * Math.PI * (i + 1) / SEGMENTS;
@@ -140,7 +110,7 @@ public final class Minimap {
             buffer.addVertex(matrix, centerX + (float) Math.sin(from) * radius,
                     centerY - (float) Math.cos(from) * radius, 0).setColor(color);
         }
-        draw(buffer);
+        MapShapes.draw(buffer);
     }
 
     /**
@@ -149,7 +119,7 @@ public final class Minimap {
      */
     private static void writeRoundMask(GuiGraphics graphics, int size, float centerX, float centerY, float radius) {
         Matrix4f matrix = graphics.pose().last().pose();
-        BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
+        BufferBuilder buffer = MapShapes.begin(VertexFormat.Mode.TRIANGLES);
         for (int i = 0; i < SEGMENTS; i++) {
             double from = 2 * Math.PI * i / SEGMENTS;
             double to = 2 * Math.PI * (i + 1) / SEGMENTS;
@@ -164,7 +134,7 @@ public final class Minimap {
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        draw(buffer);
+        MapShapes.draw(buffer);
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
         RenderSystem.colorMask(true, true, true, true);
     }
@@ -176,18 +146,5 @@ public final class Minimap {
         buffer.addVertex(matrix, a[0], a[1], MASK_DEPTH).setColor(0xFFFFFFFF);
         buffer.addVertex(matrix, c[0], c[1], MASK_DEPTH).setColor(0xFFFFFFFF);
         buffer.addVertex(matrix, d[0], d[1], MASK_DEPTH).setColor(0xFFFFFFFF);
-    }
-
-    private static BufferBuilder begin(VertexFormat.Mode mode) {
-        return Tesselator.getInstance().begin(mode, DefaultVertexFormat.POSITION_COLOR);
-    }
-
-    private static void draw(BufferBuilder buffer) {
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        RenderSystem.enableBlend();
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        RenderSystem.disableCull();
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
-        RenderSystem.enableCull();
     }
 }
