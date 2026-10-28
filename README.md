@@ -12,6 +12,10 @@ The mod does not depend on other mods.
 
 The project is at its start. The plan is in [docs/design.md](docs/design.md) and in the milestones of the issues.
 
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): the workflow, the build, the tests and the versions.
+
 ## License
 
 [MIT](LICENSE)
