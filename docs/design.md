@@ -37,7 +37,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 
 - **Minimap**: on the screen, square or round, with zoom levels, the north, the player arrow and the coordinates. The north is at the top, or the map turns with the player. The key Y shows and hides it, and the keys [ and ] change the zoom. The player selects the corner of the screen and the size. The settings are in `config/cartofold-client.toml`.
 - **Map of the world** (key M): move with the mouse and the arrow keys, zoom with the wheel (1 unit of the screen for 8 blocks to 8 units for one block), the space key centers the map on the player, the coordinates under the mouse. The map follows the player until the player moves it. The client asks the server for the regions of the map (128 regions at most, with the regions near the player).
-- **Waypoints of the player**: a name, a color, a position. The minimap and the map of the world show them. A death adds a waypoint.
+- **Waypoints of the player**: a name, a color, a position. The server keeps them (`data/cartofold/waypoints/<uuid>.json`, 256 at most) and sends them to the client. The key B adds a waypoint at the player, and a right click on the map of the world adds or changes a waypoint. The minimap and the map of the world show them: a waypoint out of the minimap stays on its side. A death adds a waypoint, and the 3 last deaths stay.
 - **Settings of the client**: the minimap, the map of the world and the visibility of the layers.
 
 ## Layer API

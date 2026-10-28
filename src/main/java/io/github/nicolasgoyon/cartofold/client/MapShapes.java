@@ -11,7 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
 
-/** Shapes that the map views draw on the screen: the arrow of the player and colored triangles. */
+/** Shapes that the map views draw on the screen: the arrow of the player and the markers of the waypoints. */
 public final class MapShapes {
     private static final int ARROW = 0xFFFFFFFF;
     private static final int ARROW_OUTLINE = 0xFF000000;
@@ -40,6 +40,31 @@ public final class MapShapes {
         buffer.addVertex(matrix, 0, tip, 0).setColor(color);
         buffer.addVertex(matrix, 0, notch, 0).setColor(color);
         buffer.addVertex(matrix, side, back, 0).setColor(color);
+    }
+
+    /**
+     * Draws the marker of a waypoint at a point: a diamond, or a square for the waypoint of a death.
+     *
+     * @param color the color, in RGB
+     */
+    public static void drawMarker(GuiGraphics graphics, float x, float y, int color, boolean death) {
+        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
+        if (!death) {
+            matrix.rotateZ((float) (Math.PI / 4));
+        }
+        BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
+        square(buffer, matrix, 4f, ARROW_OUTLINE);
+        square(buffer, matrix, 2.8f, 0xFF000000 | color);
+        draw(buffer);
+    }
+
+    private static void square(BufferBuilder buffer, Matrix4f matrix, float half, int color) {
+        buffer.addVertex(matrix, -half, -half, 0).setColor(color);
+        buffer.addVertex(matrix, -half, half, 0).setColor(color);
+        buffer.addVertex(matrix, half, half, 0).setColor(color);
+        buffer.addVertex(matrix, -half, -half, 0).setColor(color);
+        buffer.addVertex(matrix, half, half, 0).setColor(color);
+        buffer.addVertex(matrix, half, -half, 0).setColor(color);
     }
 
     static BufferBuilder begin(VertexFormat.Mode mode) {

@@ -1,7 +1,9 @@
 package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.client.ClientExploration;
+import io.github.nicolasgoyon.cartofold.client.ClientWaypoints;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
+import io.github.nicolasgoyon.cartofold.server.WaypointService;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
@@ -22,5 +24,9 @@ public final class CartofoldNetwork {
                 ExplorationService::onRequest);
         registrar.playToClient(ExplorationChunksPayload.TYPE, ExplorationChunksPayload.STREAM_CODEC,
                 (payload, context) -> ClientExploration.get().accept(payload));
+        registrar.playToServer(WaypointActionPayload.TYPE, WaypointActionPayload.STREAM_CODEC,
+                WaypointService::onAction);
+        registrar.playToClient(WaypointsPayload.TYPE, WaypointsPayload.STREAM_CODEC,
+                (payload, context) -> ClientWaypoints.get().set(payload.waypoints()));
     }
 }

@@ -94,5 +94,6 @@ public final class ExplorationRequests {
         lastRegions = List.of();
         view(null, List.of());
         ClientExploration.get().clear();
+        ClientWaypoints.get().set(List.of());
     }
 }

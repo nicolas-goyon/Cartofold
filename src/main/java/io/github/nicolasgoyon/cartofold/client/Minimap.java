@@ -69,6 +69,7 @@ public final class Minimap {
         graphics.flush();
         MapView.render(graphics, minecraft.level.dimension(), projection);
         graphics.flush();
+        WaypointMarkers.renderMinimap(graphics, minecraft.level.dimension(), projection, round);
         if (round) {
             RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         }

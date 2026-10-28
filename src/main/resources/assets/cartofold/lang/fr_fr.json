@@ -15,5 +15,14 @@
   "key.cartofold.open_map": "Ouvrir la carte du monde",
   "cartofold.worldmap.title": "Carte du monde",
   "cartofold.worldmap.coordinates": "X %s, Z %s",
-  "cartofold.worldmap.hint": "Glisser : déplacer · Molette : zoomer · Espace : centrer sur le joueur"
+  "cartofold.worldmap.hint": "Glisser : déplacer · Molette : zoomer · Clic droit : point de passage · Espace : centrer",
+  "key.cartofold.add_waypoint": "Ajouter un point de passage",
+  "cartofold.waypoint": "Point de passage",
+  "cartofold.waypoint.death": "Mort",
+  "cartofold.waypoint.add": "Nouveau point de passage",
+  "cartofold.waypoint.edit": "Modifier le point de passage",
+  "cartofold.waypoint.name": "Nom",
+  "cartofold.waypoint.color": "Couleur suivante",
+  "cartofold.waypoint.save": "Enregistrer",
+  "cartofold.waypoint.remove": "Supprimer"
 }
