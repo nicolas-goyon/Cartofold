@@ -47,6 +47,20 @@ public final class ExplorationGameTests {
         }
     }
 
+    /** A column beside {@link #GRASS} in the same chunk: the place of the test changes at each run. */
+    private static BlockPos besideInTheChunk(GameTestHelper helper) {
+        BlockPos grass = helper.absolutePos(GRASS);
+        for (BlockPos candidate : new BlockPos[] {
+            new BlockPos(1, 0, 0), new BlockPos(-1, 0, 0), new BlockPos(0, 0, 1), new BlockPos(0, 0, -1)
+        }) {
+            BlockPos absolute = helper.absolutePos(candidate);
+            if (absolute.getX() >> 4 == grass.getX() >> 4 && absolute.getZ() >> 4 == grass.getZ() >> 4) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("A column always has a neighbor in its chunk");
+    }
+
     private static int column(BlockPos pos) {
         return (pos.getX() & 15) + (pos.getZ() & 15) * 16;
     }
@@ -55,7 +69,7 @@ public final class ExplorationGameTests {
     @GameTest(template = "empty", timeoutTicks = 20)
     public static void samplerReadsTheColumns(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos waterColumn = new BlockPos(1, 0, 0);
+        BlockPos waterColumn = besideInTheChunk(helper);
         build(helper, waterColumn);
         BlockPos grass = helper.absolutePos(GRASS);
         BlockPos water = helper.absolutePos(waterColumn.atY(WATER_DEPTH));
