@@ -1,3 +1,15 @@
 {
-  "fml.menu.mods.info.description.cartofold": "One map engine for the minimap, the world map, the paper maps and the maps of the other mods."
+  "fml.menu.mods.info.description.cartofold": "One map engine for the minimap, the world map, the paper maps and the maps of the other mods.",
+  "key.categories.cartofold": "Cartofold",
+  "key.cartofold.toggle_minimap": "Show or hide the minimap",
+  "key.cartofold.zoom_in": "Zoom in the minimap",
+  "key.cartofold.zoom_out": "Zoom out the minimap",
+  "cartofold.configuration.minimap": "Minimap",
+  "cartofold.configuration.minimap.enabled": "Show the minimap",
+  "cartofold.configuration.minimap.shape": "Shape",
+  "cartofold.configuration.minimap.corner": "Corner of the screen",
+  "cartofold.configuration.minimap.size": "Size",
+  "cartofold.configuration.minimap.zoom": "Zoom level",
+  "cartofold.configuration.minimap.rotate": "Turn with the player",
+  "cartofold.configuration.minimap.coordinates": "Show the coordinates"
 }
