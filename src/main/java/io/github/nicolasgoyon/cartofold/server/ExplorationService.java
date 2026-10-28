@@ -5,6 +5,8 @@ import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
 import io.github.nicolasgoyon.cartofold.data.ExploredMask;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
+import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
+import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,11 +29,14 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * The exploration of the players, on the server.
@@ -47,6 +52,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  *       {@link #UNLOAD_TICKS} ticks goes out of memory, after its save.</li>
  *   <li>The save of the world writes the changed regions and masks on the IO threads of the game. The stop of the
  *       server writes them before the end.</li>
+ *   <li>The service sends the explored chunks to the clients (see {@link ExplorationSync}).</li>
  * </ul>
  */
 public final class ExplorationService {
@@ -67,6 +73,7 @@ public final class ExplorationService {
     private final MinecraftServer server;
     private final ExplorationStorage storage;
     private final Map<ResourceKey<Level>, LevelData> levels = new HashMap<>();
+    private final ExplorationSync sync = new ExplorationSync(this);
 
     /** The data of one level. */
     private static final class LevelData {
@@ -125,6 +132,52 @@ public final class ExplorationService {
     public static void onServerTick(ServerTickEvent.Post event) {
         if (instance != null) {
             instance.tick();
+            instance.send();
+        }
+    }
+
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (instance != null) {
+            instance.sync.remove(event.getEntity().getUUID());
+        }
+    }
+
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (instance != null) {
+            instance.sync.remove(event.getEntity().getUUID());
+        }
+    }
+
+    /**
+     * Receives the regions that a client shows (see {@link ExplorationSync#request}).
+     *
+     * @param payload the request
+     * @param context the context of the payload
+     */
+    public static void onRequest(ExplorationRequestPayload payload, IPayloadContext context) {
+        if (instance != null && context.player() instanceof ServerPlayer player) {
+            instance.sync.request(player.getUUID(), payload.dimension(), payload.regions(), instance.now());
+        }
+    }
+
+    /** The data that the server sends to the clients. */
+    public ExplorationSync sync() {
+        return sync;
+    }
+
+    /** Sends the next chunks of the queues to the players. */
+    private void send() {
+        long now = now();
+        for (UUID uuid : List.copyOf(sync.players())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+            if (player == null) {
+                sync.remove(uuid);
+                continue;
+            }
+            ExplorationChunksPayload payload = sync.poll(uuid, ExplorationSync.CHUNKS_PER_TICK, now);
+            if (payload != null) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
         }
     }
 
@@ -159,7 +212,9 @@ public final class ExplorationService {
                     continue;
                 }
                 RegionPos pos = RegionPos.ofChunk(chunkX, chunkZ);
-                mask(level.dimension(), player.getUUID(), pos, now).markChunk(chunkX, chunkZ);
+                if (mask(level.dimension(), player.getUUID(), pos, now).markChunk(chunkX, chunkZ)) {
+                    sync.explored(player.getUUID(), level.dimension(), new ChunkPos(chunkX, chunkZ), now);
+                }
                 long sampled = region(level.dimension(), pos, now).sampled(chunkX, chunkZ);
                 if (sampled == MapRegion.NEVER || now - sampled >= RESAMPLE_TICKS) {
                     data.queue.add(new ChunkPos(chunkX, chunkZ));
@@ -199,8 +254,13 @@ public final class ExplorationService {
             return false;
         }
         Optional<ChunkColumns> columns = ColumnSampler.sample(level, chunk);
-        columns.ifPresent(found -> region(level.dimension(), RegionPos.ofChunk(pos.x, pos.z), now)
-                .put(pos.x, pos.z, found, now));
+        if (columns.isPresent()) {
+            MapRegion region = region(level.dimension(), RegionPos.ofChunk(pos.x, pos.z), now);
+            boolean first = region.sampled(pos.x, pos.z) == MapRegion.NEVER;
+            if (region.put(pos.x, pos.z, columns.get(), now) || first) {
+                sync.changed(level.dimension(), pos, now);
+            }
+        }
         return true;
     }
 
