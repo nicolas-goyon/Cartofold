@@ -26,6 +26,7 @@ public final class CartofoldClient {
     public static final KeyMapping ZOOM_IN = key("zoom_in", GLFW.GLFW_KEY_RIGHT_BRACKET);
     public static final KeyMapping ZOOM_OUT = key("zoom_out", GLFW.GLFW_KEY_LEFT_BRACKET);
     public static final KeyMapping OPEN_MAP = key("open_map", GLFW.GLFW_KEY_M);
+    public static final KeyMapping ADD_WAYPOINT = key("add_waypoint", GLFW.GLFW_KEY_B);
 
     private CartofoldClient() {
     }
@@ -41,6 +42,7 @@ public final class CartofoldClient {
         event.register(ZOOM_IN);
         event.register(ZOOM_OUT);
         event.register(OPEN_MAP);
+        event.register(ADD_WAYPOINT);
     }
 
     @SubscribeEvent
@@ -63,6 +65,12 @@ public final class CartofoldClient {
         while (TOGGLE_MINIMAP.consumeClick()) {
             CartofoldClientConfig.MINIMAP.set(!CartofoldClientConfig.MINIMAP.get());
             CartofoldClientConfig.SPEC.save();
+        }
+        while (ADD_WAYPOINT.consumeClick()) {
+            if (minecraft.screen == null) {
+                minecraft.setScreen(WaypointScreen.add(null, minecraft.player.level().dimension(),
+                        minecraft.player.blockPosition()));
+            }
         }
         while (ZOOM_IN.consumeClick()) {
             zoom(1);

@@ -1,19 +1,27 @@
 package io.github.nicolasgoyon.cartofold.client;
 
+import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
+import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.lwjgl.glfw.GLFW;
 
 /**
  * The map of the explored world. The mouse moves the map, the wheel changes the zoom, the arrow keys move the map and
- * the space key puts the player at the center.
+ * the space key puts the player at the center. The right button of the mouse adds a waypoint, or changes the waypoint
+ * under the mouse.
  */
 public final class WorldMapScreen extends Screen {
     private static final int BACKGROUND = 0xFF101010;
@@ -51,6 +59,7 @@ public final class WorldMapScreen extends Screen {
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
         MapView.render(graphics, player.level().dimension(), projection);
+        WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection);
         double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
         MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
                 (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
@@ -72,6 +81,21 @@ public final class WorldMapScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             dragging = true;
+            return true;
+        }
+        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && minecraft != null && minecraft.player != null) {
+            ResourceKey<Level> dimension = minecraft.player.level().dimension();
+            MapProjection projection = projection();
+            Optional<Waypoint> waypoint = WaypointMarkers.at(dimension, projection, mouseX, mouseY);
+            if (waypoint.isPresent()) {
+                minecraft.setScreen(WaypointScreen.edit(this, waypoint.get()));
+            } else {
+                double[] block = projection.toBlock(mouseX, mouseY);
+                int blockX = (int) Math.floor(block[0]);
+                int blockZ = (int) Math.floor(block[1]);
+                minecraft.setScreen(WaypointScreen.add(this, dimension,
+                        new BlockPos(blockX, surface(dimension, blockX, blockZ), blockZ)));
+            }
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -122,6 +146,14 @@ public final class WorldMapScreen extends Screen {
             }
         }
         return true;
+    }
+
+    /** The Y of the top block of a column, from the exploration data, or the Y of the player. */
+    private int surface(ResourceKey<Level> dimension, int blockX, int blockZ) {
+        int fallback = minecraft == null || minecraft.player == null ? 64 : minecraft.player.getBlockY();
+        return ClientExploration.get().region(dimension, RegionPos.ofBlock(blockX, blockZ))
+                .filter(region -> region.sampled(blockX >> 4, blockZ >> 4) != MapRegion.NEVER)
+                .map(region -> region.height(blockX, blockZ) + 1).orElse(fallback);
     }
 
     @Override

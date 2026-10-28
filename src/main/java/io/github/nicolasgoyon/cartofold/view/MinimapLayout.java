@@ -75,4 +75,23 @@ public final class MinimapLayout {
     public static double arrowRotation(boolean rotate, float yaw) {
         return rotate ? 0 : Math.toRadians(yaw) + Math.PI;
     }
+
+    /**
+     * Keeps a point in the minimap: a point out of the minimap goes to its side, in the same direction from the
+     * center.
+     *
+     * @param dx    the X of the point from the center of the minimap
+     * @param dy    the Y of the point from the center of the minimap
+     * @param limit the largest distance from the center (the half of the size, less the size of the marker)
+     * @param round true for a round minimap
+     * @return the X and the Y of the point from the center, in the minimap
+     */
+    public static double[] keepInside(double dx, double dy, double limit, boolean round) {
+        double distance = round ? Math.hypot(dx, dy) : Math.max(Math.abs(dx), Math.abs(dy));
+        if (distance <= limit) {
+            return new double[] {dx, dy};
+        }
+        double factor = limit / distance;
+        return new double[] {dx * factor, dy * factor};
+    }
 }

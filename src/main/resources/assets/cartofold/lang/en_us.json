@@ -15,5 +15,14 @@
   "key.cartofold.open_map": "Open the map of the world",
   "cartofold.worldmap.title": "Map of the world",
   "cartofold.worldmap.coordinates": "X %s, Z %s",
-  "cartofold.worldmap.hint": "Drag: move · Wheel: zoom · Space: center on the player"
+  "cartofold.worldmap.hint": "Drag: move · Wheel: zoom · Right click: waypoint · Space: center",
+  "key.cartofold.add_waypoint": "Add a waypoint",
+  "cartofold.waypoint": "Waypoint",
+  "cartofold.waypoint.death": "Death",
+  "cartofold.waypoint.add": "New waypoint",
+  "cartofold.waypoint.edit": "Change the waypoint",
+  "cartofold.waypoint.name": "Name",
+  "cartofold.waypoint.color": "Next color",
+  "cartofold.waypoint.save": "Save",
+  "cartofold.waypoint.remove": "Remove"
 }

@@ -45,4 +45,11 @@ class MinimapLayoutTest {
         assertArrayEquals(new double[] {-1, 0}, new double[] {Math.sin(angle), -Math.cos(angle)}, 1e-9);
         assertEquals(0, MinimapLayout.mapRotation(false, 90), EPSILON);
     }
+
+    @Test
+    void pointsOutOfTheMinimapGoToItsSide() {
+        assertArrayEquals(new double[] {10, -20}, MinimapLayout.keepInside(10, -20, 40, false), EPSILON);
+        assertArrayEquals(new double[] {40, 20}, MinimapLayout.keepInside(80, 40, 40, false), EPSILON);
+        assertArrayEquals(new double[] {24, -32}, MinimapLayout.keepInside(30, -40, 40, true), EPSILON);
+    }
 }
