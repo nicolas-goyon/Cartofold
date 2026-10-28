@@ -1,8 +1,10 @@
 package io.github.nicolasgoyon.cartofold;
 
 import com.mojang.logging.LogUtils;
+import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 
 /** The Cartofold mod: one map engine for the minimap, the world map, the paper maps and the maps of the other mods. */
@@ -14,5 +16,10 @@ public final class Cartofold {
 
     public Cartofold(IEventBus modEventBus) {
         LOGGER.debug("Cartofold loads on the bus {}", modEventBus);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onLevelSave);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onPlayerTick);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onServerTick);
     }
 }

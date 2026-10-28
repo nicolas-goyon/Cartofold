@@ -17,7 +17,8 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - The server records the map colors of the chunks near each player, as the vanilla maps do: the map color of the top block of each column, the depth of the water and the height for the shading.
 - The data is for each player. A later feature can share the exploration in a team.
 - The storage: regions of 512 x 512 blocks, one folder for each dimension, in the folder of the world (`data/cartofold/`). A region file has the colors and the heights of its explored columns, and a mask of the explored columns.
-- A worker thread reads the chunks and writes the regions. The server thread only gives it the chunks.
+- Every second, the loaded chunks near each player (the view distance of the server, 12 chunks at most) go to its mask. A chunk with no sample, or with a sample older than 2 minutes, goes to a queue. The server thread reads 8 chunks of the queue at most each tick. The IO threads of the game write the files at each save of the world.
+- A region or a mask with no use for 5 minutes goes out of memory, after its save.
 - The server sends to each client the regions near the player, and the regions that a view asks for (the map of the world). It sends only the changes after the first send.
 - The caves and the dimensions with a ceiling (the Nether) need a view at the height of the player. This is an open point.
 
