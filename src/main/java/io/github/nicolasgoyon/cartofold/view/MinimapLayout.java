@@ -1,5 +1,9 @@
 package io.github.nicolasgoyon.cartofold.view;
 
+import java.util.Locale;
+import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.common.TranslatableEnum;
+
 /** The place, the zoom and the rotation of the minimap. The minimap and its tests use these rules. */
 public final class MinimapLayout {
     /** The space between the minimap and the sides of the screen, in units of the screen. */
@@ -8,11 +12,16 @@ public final class MinimapLayout {
     private static final double[] ZOOMS = {0.25, 0.5, 1, 2, 4};
 
     /** The corner of the screen of the minimap. */
-    public enum Corner {
+    public enum Corner implements TranslatableEnum {
         TOP_LEFT,
         TOP_RIGHT,
         BOTTOM_LEFT,
         BOTTOM_RIGHT;
+
+        @Override
+        public Component getTranslatedName() {
+            return Component.translatable("cartofold.configuration.minimap.corner." + name().toLowerCase(Locale.ROOT));
+        }
 
         /** True for the two corners at the top of the screen. */
         public boolean top() {
