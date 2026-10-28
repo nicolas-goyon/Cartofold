@@ -1,16 +1,22 @@
 package io.github.nicolasgoyon.cartofold.gametest;
 
+import com.mojang.authlib.GameProfile;
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
+import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import io.github.nicolasgoyon.cartofold.server.ColumnSampler;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
+import io.github.nicolasgoyon.cartofold.server.ExplorationSync;
+import java.util.List;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.material.MapColor;
@@ -93,6 +99,43 @@ public final class ExplorationGameTests {
                     "The chunk must get a sample");
             helper.assertTrue(region.color(grass.getX(), grass.getZ()) == MapColor.GRASS.id,
                     "The region has the color of the grass");
+        });
+    }
+
+    /**
+     * A client that shows a region gets the chunks of the region that the player explored. A chunk that the player
+     * did not explore stays on the server.
+     */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void clientGetsTheExploredChunksOfItsRegions(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        build(helper, new BlockPos(1, 0, 0));
+        BlockPos grass = helper.absolutePos(GRASS);
+        ChunkPos chunk = new ChunkPos(grass);
+        ExplorationService service = ExplorationService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_sync"));
+        ServerPlayer other = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_other"));
+        player.setPos(grass.getX() + 0.5, grass.getY() + 1, grass.getZ() + 0.5);
+        RegionPos pos = RegionPos.ofChunk(chunk.x, chunk.z);
+        ExplorationSync sync = service.sync();
+
+        service.explore(player);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(service.region(level.dimension(), pos, level.getGameTime())
+                    .sampled(chunk.x, chunk.z) != MapRegion.NEVER, "The chunk must get a sample");
+            sync.request(player.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
+            sync.request(other.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
+            helper.assertTrue(sync.pending(other.getUUID()) == 0, "The other player explored no chunk");
+            ExplorationChunksPayload payload = sync.poll(player.getUUID(), ExplorationChunksPayload.MAX_CHUNKS,
+                    level.getGameTime());
+            helper.assertTrue(payload != null, "The player gets chunks");
+            ExplorationChunksPayload.Chunk sent = payload.chunks().stream()
+                    .filter(found -> found.x() == chunk.x && found.z() == chunk.z).findFirst().orElseThrow();
+            helper.assertTrue(sent.columns().colors()[(grass.getX() & 15) + (grass.getZ() & 15) * 16]
+                    == MapColor.GRASS.id, "The chunk has the color of the grass");
+            sync.request(player.getUUID(), level.dimension(), List.of(), level.getGameTime());
+            sync.remove(player.getUUID());
+            sync.remove(other.getUUID());
         });
     }
 }

@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold;
 
 import com.mojang.logging.LogUtils;
+import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -15,11 +16,13 @@ public final class Cartofold {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public Cartofold(IEventBus modEventBus) {
-        LOGGER.debug("Cartofold loads on the bus {}", modEventBus);
         NeoForge.EVENT_BUS.addListener(ExplorationService::onServerStarted);
         NeoForge.EVENT_BUS.addListener(ExplorationService::onServerStopping);
         NeoForge.EVENT_BUS.addListener(ExplorationService::onLevelSave);
         NeoForge.EVENT_BUS.addListener(ExplorationService::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(ExplorationService::onServerTick);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(ExplorationService::onPlayerChangedDimension);
+        modEventBus.addListener(CartofoldNetwork::register);
     }
 }
