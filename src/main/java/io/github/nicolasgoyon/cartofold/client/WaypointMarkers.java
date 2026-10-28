@@ -45,12 +45,19 @@ public final class WaypointMarkers {
         }
     }
 
-    /** Draws the waypoints of a dimension on the map of the world, with their names. */
+    /**
+     * Draws the waypoints of a dimension on the map of the world.
+     *
+     * @param names true to show the names under the markers
+     */
     public static void renderWorldMap(GuiGraphics graphics, Font font, ResourceKey<Level> dimension,
-            MapProjection projection) {
+            MapProjection projection, boolean names) {
         for (Waypoint waypoint : ClientWaypoints.get().in(dimension)) {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], waypoint.color(), waypoint.death());
+            if (!names) {
+                continue;
+            }
             graphics.drawCenteredString(font, name(waypoint), (int) Math.round(point[0]),
                     (int) Math.round(point[1]) + MARKER_SIZE + 1, 0xFFFFFFFF);
         }

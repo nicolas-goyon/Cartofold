@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold.client;
 
+import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
@@ -10,12 +11,15 @@ import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -29,6 +33,7 @@ public final class WorldMapScreen extends Screen {
     private static final int HINT = 0xFFA0A0A0;
     /** An arrow key moves the map by this part of the screen. */
     private static final double KEY_MOVE = 1.0 / 8;
+    private static final int SETTINGS_WIDTH = 80;
     /** The state of the last map: the next map opens at the same scale. */
     @Nullable
     private static WorldMapState last;
@@ -40,6 +45,16 @@ public final class WorldMapScreen extends Screen {
         super(Component.translatable("cartofold.worldmap.title"));
         double scale = last == null ? 1 : last.scale();
         this.state = new WorldMapState(player.getX(), player.getZ(), scale);
+    }
+
+    @Override
+    protected void init() {
+        addRenderableWidget(Button.builder(Component.translatable("cartofold.worldmap.settings"), button -> {
+            if (minecraft != null) {
+                ModList.get().getModContainerById(Cartofold.MOD_ID).ifPresent(container ->
+                        minecraft.setScreen(new ConfigurationScreen(container, this)));
+            }
+        }).bounds(width - SETTINGS_WIDTH - 6, 4, SETTINGS_WIDTH, 20).build());
     }
 
     private MapProjection projection() {
@@ -59,7 +74,10 @@ public final class WorldMapScreen extends Screen {
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
         MapView.render(graphics, player.level().dimension(), projection);
-        WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection);
+        if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
+            WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection,
+                    CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get());
+        }
         double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
         MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
                 (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
@@ -70,6 +88,7 @@ public final class WorldMapScreen extends Screen {
         graphics.drawCenteredString(font, title, width / 2, 6, TEXT);
         Component hint = Component.translatable("cartofold.worldmap.hint");
         graphics.drawString(font, hint, width - font.width(hint) - 6, height - font.lineHeight - 4, HINT);
+        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -79,6 +98,9 @@ public final class WorldMapScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (super.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             dragging = true;
             return true;
@@ -86,7 +108,8 @@ public final class WorldMapScreen extends Screen {
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && minecraft != null && minecraft.player != null) {
             ResourceKey<Level> dimension = minecraft.player.level().dimension();
             MapProjection projection = projection();
-            Optional<Waypoint> waypoint = WaypointMarkers.at(dimension, projection, mouseX, mouseY);
+            Optional<Waypoint> waypoint = CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()
+                    ? WaypointMarkers.at(dimension, projection, mouseX, mouseY) : Optional.empty();
             if (waypoint.isPresent()) {
                 minecraft.setScreen(WaypointScreen.edit(this, waypoint.get()));
             } else {
@@ -98,7 +121,7 @@ public final class WorldMapScreen extends Screen {
             }
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return false;
     }
 
     @Override

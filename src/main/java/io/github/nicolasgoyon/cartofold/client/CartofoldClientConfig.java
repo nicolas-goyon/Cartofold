@@ -1,14 +1,22 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
+import java.util.Locale;
+import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.ModConfigSpec;
+import net.neoforged.neoforge.common.TranslatableEnum;
 
 /** The settings of the client, in the file {@code config/cartofold-client.toml}. */
 public final class CartofoldClientConfig {
     /** The shape of the minimap. */
-    public enum Shape {
+    public enum Shape implements TranslatableEnum {
         SQUARE,
-        ROUND
+        ROUND;
+
+        @Override
+        public Component getTranslatedName() {
+            return Component.translatable("cartofold.configuration.minimap.shape." + name().toLowerCase(Locale.ROOT));
+        }
     }
 
     public static final ModConfigSpec SPEC;
@@ -19,6 +27,9 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.IntValue MINIMAP_ZOOM;
     public static final ModConfigSpec.BooleanValue MINIMAP_ROTATE;
     public static final ModConfigSpec.BooleanValue MINIMAP_COORDINATES;
+    public static final ModConfigSpec.BooleanValue MINIMAP_WAYPOINTS;
+    public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINTS;
+    public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINT_NAMES;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -39,6 +50,14 @@ public final class CartofoldClientConfig {
                 .translation("cartofold.configuration.minimap.rotate").define("rotate", false);
         MINIMAP_COORDINATES = builder.comment("Show the coordinates of the player under the minimap.")
                 .translation("cartofold.configuration.minimap.coordinates").define("coordinates", true);
+        MINIMAP_WAYPOINTS = builder.comment("Show the waypoints on the minimap.")
+                .translation("cartofold.configuration.minimap.waypoints").define("waypoints", true);
+        builder.pop();
+        builder.translation("cartofold.configuration.worldmap").push("worldmap");
+        WORLD_MAP_WAYPOINTS = builder.comment("Show the waypoints on the map of the world.")
+                .translation("cartofold.configuration.worldmap.waypoints").define("waypoints", true);
+        WORLD_MAP_WAYPOINT_NAMES = builder.comment("Show the names of the waypoints on the map of the world.")
+                .translation("cartofold.configuration.worldmap.waypoint_names").define("waypointNames", true);
         builder.pop();
         SPEC = builder.build();
     }
