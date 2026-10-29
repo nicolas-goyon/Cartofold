@@ -57,5 +57,6 @@
   "cartofold.configuration.layers": "Calques",
   "cartofold.configuration.layers.tooltip": "Les calques des autres mods. Le bouton « Calques » de la carte du monde les affiche et les masque aussi.",
   "cartofold.configuration.layers.hidden": "Calques masqués",
-  "cartofold.configuration.layers.hidden.tooltip": "Les identifiants des calques que les vues n'affichent pas."
+  "cartofold.configuration.layers.hidden.tooltip": "Les identifiants des calques que les vues n'affichent pas.",
+  "cartofold.frame": "Carte"
 }

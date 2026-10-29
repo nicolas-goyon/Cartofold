@@ -9,6 +9,7 @@ import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.tile.TileImage;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import java.util.Optional;
+import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceKey;
@@ -34,6 +35,20 @@ public final class MapView {
      */
     public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
             MapViewKind kind) {
+        render(graphics, dimension, projection, kind, layer -> true);
+    }
+
+    /**
+     * Draws the tiles of a dimension in the rectangle of a projection, then a selection of the visible layers.
+     *
+     * @param graphics   the graphics of the screen
+     * @param dimension  the dimension
+     * @param projection the projection of the view
+     * @param kind       the kind of the view, for the visibility of the layers
+     * @param layers     the layers to draw, among the visible layers
+     */
+    public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
+            MapViewKind kind, Predicate<ResourceLocation> layers) {
         int lod = projection.lod(Minecraft.getInstance().getWindow().getGuiScale());
         int size = TileImage.size(lod);
         graphics.enableScissor((int) Math.floor(projection.x()), (int) Math.floor(projection.y()),
@@ -59,7 +74,7 @@ public final class MapView {
         }
         pose.popPose();
         graphics.flush();
-        LayerRenderer.render(graphics, dimension, projection, kind);
+        LayerRenderer.render(graphics, dimension, projection, kind, layers);
         graphics.flush();
         RenderSystem.disableBlend();
         graphics.disableScissor();
