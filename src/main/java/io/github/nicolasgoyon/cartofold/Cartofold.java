@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import io.github.nicolasgoyon.cartofold.client.CartofoldClientConfig;
 import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
+import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -33,6 +34,10 @@ public final class Cartofold {
         NeoForge.EVENT_BUS.addListener(WaypointService::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(WaypointService::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(WaypointService::onDeath);
+        NeoForge.EVENT_BUS.addListener(LayerService::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(LayerService::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedOut);
         modEventBus.addListener(CartofoldNetwork::register);
     }
 }

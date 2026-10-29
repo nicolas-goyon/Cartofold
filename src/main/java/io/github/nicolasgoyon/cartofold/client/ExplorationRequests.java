@@ -95,5 +95,6 @@ public final class ExplorationRequests {
         view(null, List.of());
         ClientExploration.get().clear();
         ClientWaypoints.get().set(List.of());
+        ClientLayers.get().clear();
     }
 }
