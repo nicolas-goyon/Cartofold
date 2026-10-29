@@ -26,13 +26,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
-import net.minecraft.world.level.saveddata.maps.MapId;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * The update of a vanilla map at a distance, in the cartography table (see {@link MapMoves#UPDATE}).
+ * The update of a survey map at a distance, in the cartography table (see {@link MapMoves#UPDATE}).
  *
  * <ul>
  *   <li>The update reads the chunks of the area of the map that are already generated: it never generates a chunk. A
@@ -61,13 +59,13 @@ public final class MapUpdates {
     /** An update in progress. */
     private static final class Job {
         final ServerLevel level;
-        final MapId id;
+        final SurveyMapId id;
         final Deque<ChunkPos> waiting;
         final Queue<ChunkPos> ready = new ConcurrentLinkedQueue<>();
         final double[] heights = new double[MapMoves.SIZE * MapMoves.SIZE];
         int checking;
 
-        Job(ServerLevel level, MapId id, List<ChunkPos> chunks) {
+        Job(ServerLevel level, SurveyMapId id, List<ChunkPos> chunks) {
             this.level = level;
             this.id = id;
             this.waiting = new ArrayDeque<>(chunks);
@@ -86,7 +84,7 @@ public final class MapUpdates {
      * @param id    the id of the map
      * @param data  the data of the map
      */
-    public static void start(ServerLevel level, MapId id, MapItemSavedData data) {
+    public static void start(ServerLevel level, SurveyMapId id, SurveyMapData data) {
         JOBS.removeIf(job -> job.id.equals(id) && job.level == level);
         JOBS.add(new Job(level, id, chunks(data)));
     }
@@ -97,13 +95,13 @@ public final class MapUpdates {
      * @param id the id of the map
      * @return true during the update
      */
-    public static boolean running(MapId id) {
+    public static boolean running(SurveyMapId id) {
         return JOBS.stream().anyMatch(job -> job.id.equals(id));
     }
 
     /** The chunks of an update: the chunks with unexplored pixels first, each group from the middle of the map. */
-    public static List<ChunkPos> chunks(MapItemSavedData data) {
-        int factor = 1 << data.scale;
+    public static List<ChunkPos> chunks(SurveyMapData data) {
+        int factor = 1 << data.scale();
         int minX = blockX(data, 0);
         int minZ = blockZ(data, 0);
         int maxX = blockX(data, MapMoves.SIZE - 1) + factor - 1;
@@ -114,19 +112,19 @@ public final class MapUpdates {
                 chunks.add(new ChunkPos(x, z));
             }
         }
-        int middleX = data.centerX >> 4;
-        int middleZ = data.centerZ >> 4;
+        int middleX = data.centerX() >> 4;
+        int middleZ = data.centerZ() >> 4;
         chunks.sort(Comparator.<ChunkPos, Boolean>comparing(chunk -> explored(data, chunk))
                 .thenComparingInt(chunk -> Math.max(Math.abs(chunk.x - middleX), Math.abs(chunk.z - middleZ))));
         return chunks.subList(0, Math.min(LIMIT, chunks.size()));
     }
 
     /** True if all the pixels of a chunk are explored. */
-    private static boolean explored(MapItemSavedData data, ChunkPos chunk) {
+    private static boolean explored(SurveyMapData data, ChunkPos chunk) {
         int[] range = pixels(data, chunk);
         for (int px = range[0]; px <= range[1]; px++) {
             for (int pz = range[2]; pz <= range[3]; pz++) {
-                if (data.colors[px + pz * MapMoves.SIZE] == 0) {
+                if (data.colors()[px + pz * MapMoves.SIZE] == 0) {
                     return false;
                 }
             }
@@ -135,19 +133,19 @@ public final class MapUpdates {
     }
 
     /** The X of the first block of a pixel, as in the game. */
-    static int blockX(MapItemSavedData data, int px) {
-        int factor = 1 << data.scale;
-        return (data.centerX / factor + px - MapMoves.SIZE / 2) * factor;
+    static int blockX(SurveyMapData data, int px) {
+        int factor = 1 << data.scale();
+        return (data.centerX() / factor + px - MapMoves.SIZE / 2) * factor;
     }
 
     /** The Z of the first block of a pixel, as in the game. */
-    static int blockZ(MapItemSavedData data, int pz) {
-        int factor = 1 << data.scale;
-        return (data.centerZ / factor + pz - MapMoves.SIZE / 2) * factor;
+    static int blockZ(SurveyMapData data, int pz) {
+        int factor = 1 << data.scale();
+        return (data.centerZ() / factor + pz - MapMoves.SIZE / 2) * factor;
     }
 
     /** The pixels of a chunk: {min X, max X, min Z, max Z}, in the map. An empty range has max smaller than min. */
-    static int[] pixels(MapItemSavedData data, ChunkPos chunk) {
+    static int[] pixels(SurveyMapData data, ChunkPos chunk) {
         int[] range = {MapMoves.SIZE, -1, MapMoves.SIZE, -1};
         for (int p = 0; p < MapMoves.SIZE; p++) {
             if (blockX(data, p) >> 4 == chunk.x) {
@@ -169,8 +167,8 @@ public final class MapUpdates {
         int budget = CHUNKS_PER_TICK;
         for (Iterator<Job> iterator = JOBS.iterator(); iterator.hasNext();) {
             Job job = iterator.next();
-            MapItemSavedData data = job.level.getMapData(job.id);
-            if (data == null || data.locked) {
+            SurveyMapData data = SurveyMapData.get(job.level.getServer(), job.id);
+            if (data == null || data.locked()) {
                 iterator.remove();
                 continue;
             }
@@ -213,8 +211,8 @@ public final class MapUpdates {
     }
 
     /** Paints the pixels of a chunk on the map. */
-    private static void paint(Job job, MapItemSavedData data, LevelChunk chunk) {
-        int factor = 1 << data.scale;
+    private static void paint(Job job, SurveyMapData data, LevelChunk chunk) {
+        int factor = 1 << data.scale();
         int[] range = pixels(data, chunk.getPos());
         ServerLevel level = job.level;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -263,7 +261,7 @@ public final class MapUpdates {
                 double north = pz > 0 && !Double.isNaN(job.heights[index - MapMoves.SIZE])
                         ? job.heights[index - MapMoves.SIZE] : height;
                 MapColor.Brightness brightness = brightness(color, height, north, depth, px, pz, factor);
-                data.updateColor(px, pz, color.getPackedId(brightness));
+                data.setColor(px, pz, color.getPackedId(brightness));
             }
         }
     }
