@@ -1,13 +1,20 @@
 package io.github.nicolasgoyon.cartofold;
 
 import com.mojang.logging.LogUtils;
+import io.github.nicolasgoyon.cartofold.api.PaperMapMarkers;
+import io.github.nicolasgoyon.cartofold.api.PaperMarkerSource;
 import io.github.nicolasgoyon.cartofold.client.CartofoldClientConfig;
 import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
+import io.github.nicolasgoyon.cartofold.paper.CartofoldMapDecorations;
 import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
+import io.github.nicolasgoyon.cartofold.paper.PaperWaypoints;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.PaperMapSync;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
+import java.util.Optional;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -43,6 +50,12 @@ public final class Cartofold {
         NeoForge.EVENT_BUS.addListener(PaperMapSync::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(MapUpdates::onServerTick);
         NeoForge.EVENT_BUS.addListener(MapUpdates::onServerStopped);
+        NeoForge.EVENT_BUS.addListener(PaperWaypoints::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener(PaperWaypoints::onPlayerTick);
+        CartofoldMapDecorations.register(modEventBus);
+        PaperMapMarkers.register(new PaperMarkerSource(ResourceLocation.fromNamespaceAndPath(MOD_ID, "lodestone"),
+                state -> state.is(Blocks.LODESTONE), CartofoldMapDecorations.WAYPOINT,
+                (level, pos) -> Optional.of(Blocks.LODESTONE.getName())));
         modEventBus.addListener(CartofoldNetwork::register);
     }
 }

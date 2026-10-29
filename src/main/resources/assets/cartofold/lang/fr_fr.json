@@ -63,5 +63,7 @@
   "cartofold.cartography.south": "Déplacer la carte vers le sud (avec un papier). Encore : dézoomer",
   "cartofold.cartography.west": "Déplacer la carte vers l'ouest (avec un papier). Encore : dézoomer",
   "cartofold.cartography.east": "Déplacer la carte vers l'est (avec un papier). Encore : dézoomer",
-  "cartofold.cartography.update": "Mettre à jour la carte avec les terres générées (avec un papier). Encore : dézoomer"
+  "cartofold.cartography.update": "Mettre à jour la carte avec les terres générées (avec un papier). Encore : dézoomer",
+  "cartofold.paper.waypoint.added": "Point de passage sur la carte : %s",
+  "cartofold.paper.waypoint.removed": "Point de passage retiré de la carte : %s"
 }

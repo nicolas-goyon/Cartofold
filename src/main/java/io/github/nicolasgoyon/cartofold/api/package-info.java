@@ -9,6 +9,8 @@
  *       ({@link io.github.nicolasgoyon.cartofold.api.MapMarker}). Its description
  *       ({@link io.github.nicolasgoyon.cartofold.api.LayerInfo}) gives its order and the kinds of views that show it
  *       ({@link io.github.nicolasgoyon.cartofold.api.MapViewKind}).</li>
+ *   <li>{@link io.github.nicolasgoyon.cartofold.api.PaperMapMarkers}: the blocks that mark waypoints on the paper
+ *       maps.</li>
  *   <li>A click on a clickable marker posts a {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} on the
  *       server.</li>
  * </ul>

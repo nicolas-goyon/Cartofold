@@ -1,6 +1,6 @@
 # API of Cartofold
 
-Other mods use the API of Cartofold to add layers to all the maps (the minimap, the map of the world, the map frames and the paper maps) and to show map frames in their own screens.
+Other mods use the API of Cartofold to add layers to all the maps (the minimap, the map of the world, the map frames and the paper maps), to show map frames in their own screens, and to mark their blocks on the paper maps.
 
 The API is in the packages `io.github.nicolasgoyon.cartofold.api` (server and common) and `io.github.nicolasgoyon.cartofold.api.client` (client). The class `io.github.nicolasgoyon.cartofold.view.MapProjection` is also part of the API. The other packages are not part of the API: they can change in a minor version. The Javadoc jar of each version has the documentation of the API.
 
@@ -89,6 +89,22 @@ NeoForge.EVENT_BUS.addListener(MarkerClickEvent.class, event -> {
     }
 });
 ```
+
+## Waypoints of blocks on the paper maps
+
+The paper maps are the vanilla maps. A player marks a place on a map from a block, as with a banner: a use of the map on the block adds a decoration with a name, and a second use removes it. A mod adds its own blocks with `PaperMapMarkers`:
+
+```java
+PaperMapMarkers.register(new PaperMarkerSource(
+        ResourceLocation.fromNamespaceAndPath("mymod", "village_heart"),
+        state -> state.is(MyBlocks.VILLAGE_HEART.get()),
+        MyMapDecorations.VILLAGE, // a MapDecorationType, or CartofoldMapDecorations.WAYPOINT
+        (level, pos) -> villageAt(level, pos).map(village -> Component.literal(village.name()))));
+```
+
+- The name function gives the name of the waypoint. An empty name tells that the block does not mark a waypoint now: the use does nothing, and the maps lose the waypoint.
+- When the chunk of a waypoint is loaded, the server checks the block again: a block that changes removes the waypoint, and the name follows the name function.
+- The decoration type `cartofold:waypoint` (`CartofoldMapDecorations.WAYPOINT`) is a pin. The lodestone uses it.
 
 ## Layers from the client
 
