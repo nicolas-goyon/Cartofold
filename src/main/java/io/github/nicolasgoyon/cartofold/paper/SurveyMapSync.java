@@ -26,6 +26,8 @@ public final class SurveyMapSync {
     public static final int CHECK_TICKS = 10;
     /** The item frames with a map at this distance or less from a player get to the player, in blocks. */
     public static final double FRAME_DISTANCE = 64.0;
+    /** The time between two checks of the markers of the maps (see {@link PaperWaypoints#check}), in ticks. */
+    public static final int CHECK_MARKER_TICKS = 40;
 
     private static final Map<UUID, Int2IntOpenHashMap> SENT = new HashMap<>();
 
@@ -54,6 +56,9 @@ public final class SurveyMapSync {
         for (ItemStack stack : stacks) {
             SurveyMapId id = SurveyMapItem.id(stack);
             SurveyMapData data = id == null ? null : SurveyMapData.get(player.server, id);
+            if (data != null && player.tickCount % CHECK_MARKER_TICKS == 0) {
+                PaperWaypoints.check(player.serverLevel(), data);
+            }
             if (data != null && sent.getOrDefault(id.id(), -1) != data.version()) {
                 sent.put(id.id(), data.version());
                 PacketDistributor.sendToPlayer(player, SurveyMapPayload.of(id.id(), data));
