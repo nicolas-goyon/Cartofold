@@ -2,6 +2,7 @@ package io.github.nicolasgoyon.cartofold.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import io.github.nicolasgoyon.cartofold.Cartofold;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.tile.TileImage;
@@ -53,7 +54,7 @@ public final class MapTiles {
     private int updates;
     private int nextId;
 
-    private record Key(ResourceKey<Level> dimension, RegionPos pos, int lod) {
+    private record Key(ExplorationKey slice, RegionPos pos, int lod) {
     }
 
     /** A texture with the versions of the data that it shows. */
@@ -87,6 +88,18 @@ public final class MapTiles {
      * @return the location of the texture, or empty if the client has no data for the region
      */
     public Optional<ResourceLocation> tile(ResourceKey<Level> dimension, RegionPos pos, int lod) {
+        return tile(ExplorationKey.surface(dimension), pos, lod);
+    }
+
+    /**
+     * The texture of a region of a slice at a level of detail.
+     *
+     * @param dimension the dimension and the slice
+     * @param pos       the region
+     * @param lod       the level of detail, from 0 to {@link TileImage#LODS} - 1
+     * @return the location of the texture, or empty if the client has no data for the region
+     */
+    public Optional<ResourceLocation> tile(ExplorationKey dimension, RegionPos pos, int lod) {
         ClientExploration exploration = ClientExploration.get();
         Optional<MapRegion> region = exploration.region(dimension, pos);
         if (region.isEmpty()) {

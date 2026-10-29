@@ -13,6 +13,7 @@ The mod does not depend on other mods. It is necessary on the server and on the 
 - **Map engine**: the server records the exploration of each player (the Overworld, the End, and the floor of the Nether under its ceiling) and sends to each client only the chunks that the player explored.
 - **Minimap**: square or round, five zoom levels, the north, the arrow of the player and the coordinates. It turns with the player or keeps the north at the top.
 - **Map of the world**: move, zoom around the mouse, center on the player, the coordinates under the mouse.
+- **Caves**: in a cave, the minimap and the map of the world show the caves at the height of the player, in bands of 16 blocks. Page Up and Page Down select a band on the map of the world.
 - **Waypoints of the player**: a name, a color and a position, on the minimap and on the map of the world. A death adds a waypoint.
 - **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther. The cartography table zooms, copies, locks, moves and updates them. Banners, lodestones and the blocks of other mods mark them.
 - **API**: layers (areas of chunks, lines, markers with a click), map frames for the screens of other mods, and blocks that mark the paper maps.

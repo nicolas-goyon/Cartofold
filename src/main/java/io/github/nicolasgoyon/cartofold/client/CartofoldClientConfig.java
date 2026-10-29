@@ -29,6 +29,7 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.BooleanValue MINIMAP_ROTATE;
     public static final ModConfigSpec.BooleanValue MINIMAP_COORDINATES;
     public static final ModConfigSpec.BooleanValue MINIMAP_WAYPOINTS;
+    public static final ModConfigSpec.BooleanValue CAVES;
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINTS;
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINT_NAMES;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> HIDDEN_LAYERS;
@@ -54,6 +55,8 @@ public final class CartofoldClientConfig {
                 .translation("cartofold.configuration.minimap.coordinates").define("coordinates", true);
         MINIMAP_WAYPOINTS = builder.comment("Show the waypoints on the minimap.")
                 .translation("cartofold.configuration.minimap.waypoints").define("waypoints", true);
+        CAVES = builder.comment("In a cave, the minimap shows the caves at the height of the player.")
+                .translation("cartofold.configuration.minimap.caves").define("caves", true);
         builder.pop();
         builder.translation("cartofold.configuration.worldmap").push("worldmap");
         WORLD_MAP_WAYPOINTS = builder.comment("Show the waypoints on the map of the world.")

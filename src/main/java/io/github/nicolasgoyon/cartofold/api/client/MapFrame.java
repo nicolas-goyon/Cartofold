@@ -6,6 +6,8 @@ import io.github.nicolasgoyon.cartofold.client.LayerRenderer;
 import io.github.nicolasgoyon.cartofold.client.MapShapes;
 import io.github.nicolasgoyon.cartofold.client.MapView;
 import io.github.nicolasgoyon.cartofold.client.WaypointMarkers;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
@@ -52,6 +54,7 @@ public class MapFrame extends AbstractWidget {
     private boolean showPlayer = true;
     private boolean showWaypoints = true;
     private boolean followPlayer;
+    private MapSlice slice = MapSlice.SURFACE;
 
     /** Makes a frame centered on the player, at one unit of the screen for one block. */
     public MapFrame(int x, int y, int width, int height) {
@@ -80,6 +83,12 @@ public class MapFrame extends AbstractWidget {
     /** Shows a dimension. By default, the frame shows the dimension of the player. */
     public MapFrame dimension(@Nullable ResourceKey<Level> dimension) {
         this.dimension = dimension;
+        return this;
+    }
+
+    /** Shows a slice: the surface (by default) or a band of caves. */
+    public MapFrame slice(MapSlice slice) {
+        this.slice = slice;
         return this;
     }
 
@@ -136,11 +145,12 @@ public class MapFrame extends AbstractWidget {
             state.center(player.getX(), player.getZ());
         }
         MapProjection projection = projection();
-        ExplorationRequests.view(this, shown, projection.regions());
+        ExplorationKey key = new ExplorationKey(shown, slice);
+        ExplorationRequests.view(this, key, projection.regions());
         graphics.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, BORDER);
         graphics.fill(getX(), getY(), getX() + width, getY() + height, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, shown, projection, MapViewKind.FRAME, layers);
+        MapView.render(graphics, key, projection, MapViewKind.FRAME, layers);
         graphics.enableScissor(getX(), getY(), getX() + width, getY() + height);
         if (showWaypoints) {
             WaypointMarkers.renderWorldMap(graphics, Minecraft.getInstance().font, shown, projection, true);

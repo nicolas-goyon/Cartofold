@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import net.minecraft.Util;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +31,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.LevelResource;
@@ -56,7 +58,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  *       {@link #UNLOAD_TICKS} ticks goes out of memory, after its save.</li>
  *   <li>The save of the world writes the changed regions and masks on the IO threads of the game. The stop of the
  *       server writes them before the end.</li>
- *   <li>A player in a cave (see {@link #underground}) also explores the band of caves of its height (see
+ *   <li>A player in a cave (see {@link #underground}: under the top of its column, in the dark) also explores the band of caves of its height (see
  *       {@link MapSlice}), within {@link #CAVE_RADIUS} chunks.</li>
  *   <li>The service sends the explored chunks to the clients (see {@link ExplorationSync}).</li>
  * </ul>
@@ -66,8 +68,10 @@ public final class ExplorationService {
     public static final int CHECK_TICKS = 20;
     /** The largest radius of the exploration of the caves around a player in a cave, in chunks. */
     public static final int CAVE_RADIUS = 6;
-    /** A player this number of blocks or more under the surface of its column is in a cave. */
+    /** A player this number of blocks or more under the top of its column can be in a cave. */
     public static final int UNDERGROUND_DEPTH = 5;
+    /** A player with this sky light or less at its eyes can be in a cave. */
+    public static final int CAVE_SKY_LIGHT = 3;
     /** The largest radius of the exploration around a player, in chunks. */
     public static final int MAX_RADIUS = 12;
     /** A chunk gets a new sample after this number of ticks. */
@@ -217,12 +221,15 @@ public final class ExplorationService {
 
     /**
      * True if a player is in a cave: in a dimension with no ceiling, {@link #UNDERGROUND_DEPTH} blocks or more under
-     * the surface of its column.
+     * the top of its column, with a sky light of {@link #CAVE_SKY_LIGHT} or less at its eyes. The client and the server
+     * have the same answer: they have the same heightmap and the same light.
      */
     public static boolean underground(Player player) {
         Level level = player.level();
-        return !level.dimensionType().hasCeiling() && level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                player.getBlockX(), player.getBlockZ()) - player.getBlockY() >= UNDERGROUND_DEPTH;
+        return !level.dimensionType().hasCeiling()
+                && level.getHeight(Heightmap.Types.MOTION_BLOCKING, player.getBlockX(), player.getBlockZ())
+                        - player.getBlockY() >= UNDERGROUND_DEPTH
+                && level.getBrightness(LightLayer.SKY, BlockPos.containing(player.getEyePosition())) <= CAVE_SKY_LIGHT;
     }
 
     /** Explores the loaded chunks of a slice within a radius of a player. */
