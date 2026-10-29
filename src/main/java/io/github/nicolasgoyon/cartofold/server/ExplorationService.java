@@ -197,9 +197,6 @@ public final class ExplorationService {
      */
     public void explore(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        if (level.dimensionType().hasCeiling()) {
-            return;
-        }
         LevelData data = data(level.dimension());
         long now = now();
         int radius = Math.min(MAX_RADIUS, server.getPlayerList().getViewDistance());

@@ -152,4 +152,27 @@ public final class ExplorationGameTests {
             sync.remove(other.getUUID());
         });
     }
+
+    /** Under a ceiling, the sampler gives the floor: the first block with a color under the air under the ceiling. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void samplerReadsTheFloorUnderACeiling(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = new BlockPos(1, 1, 1);
+        for (int y = 1; y < 12; y++) {
+            helper.setBlock(floor.atY(y), Blocks.AIR);
+        }
+        helper.setBlock(floor, Blocks.NETHERRACK);
+        helper.setBlock(floor.atY(8), Blocks.BEDROCK);
+        helper.setBlock(floor.atY(9), Blocks.BEDROCK);
+        BlockPos ground = helper.absolutePos(floor);
+        BlockPos top = helper.absolutePos(floor.atY(9));
+        LevelChunk chunk = level.getChunkAt(ground);
+
+        ChunkColumns columns = ColumnSampler.sampleUnder(level, chunk, top.getY());
+
+        helper.assertTrue(columns.colors()[column(ground)] == MapColor.NETHER.id, "The color of the floor: "
+                + columns.colors()[column(ground)]);
+        helper.assertTrue(columns.heights()[column(ground)] == ground.getY(), "The height of the floor");
+        helper.succeed();
+    }
 }
