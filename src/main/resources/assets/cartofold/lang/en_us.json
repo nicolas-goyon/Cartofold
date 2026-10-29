@@ -58,5 +58,10 @@
   "cartofold.configuration.layers.tooltip": "The layers of the other mods. The \"Layers\" button of the map of the world also shows and hides them.",
   "cartofold.configuration.layers.hidden": "Hidden layers",
   "cartofold.configuration.layers.hidden.tooltip": "The identifiers of the layers that the views do not show.",
-  "cartofold.frame": "Map"
+  "cartofold.frame": "Map",
+  "cartofold.cartography.north": "Move the map north (with a paper). Again: zoom out",
+  "cartofold.cartography.south": "Move the map south (with a paper). Again: zoom out",
+  "cartofold.cartography.west": "Move the map west (with a paper). Again: zoom out",
+  "cartofold.cartography.east": "Move the map east (with a paper). Again: zoom out",
+  "cartofold.cartography.update": "Update the map from the generated land (with a paper). Again: zoom out"
 }

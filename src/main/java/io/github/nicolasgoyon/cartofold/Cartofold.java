@@ -3,6 +3,7 @@ package io.github.nicolasgoyon.cartofold;
 import com.mojang.logging.LogUtils;
 import io.github.nicolasgoyon.cartofold.client.CartofoldClientConfig;
 import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
+import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.PaperMapSync;
@@ -40,6 +41,8 @@ public final class Cartofold {
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(PaperMapSync::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(MapUpdates::onServerTick);
+        NeoForge.EVENT_BUS.addListener(MapUpdates::onServerStopped);
         modEventBus.addListener(CartofoldNetwork::register);
     }
 }
