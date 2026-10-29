@@ -25,6 +25,13 @@ base {
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
     withSourcesJar()
+    withJavadocJar()
+}
+
+// The Javadoc of the API is in the Javadoc jar. The classes out of the API have no Javadoc on each member.
+tasks.named('javadoc', Javadoc) {
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+    options.encoding = 'UTF-8'
 }
 
 // GameTests: in-game tests in src/gametest. The runs load this source set with the mod. The jar and the sources jar
