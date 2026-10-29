@@ -3,7 +3,9 @@ package io.github.nicolasgoyon.cartofold.gametest;
 import com.mojang.authlib.GameProfile;
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapData;
@@ -106,6 +108,8 @@ public final class ExplorationGameTests {
         RegionPos pos = RegionPos.ofBlock(grass.getX(), grass.getZ());
 
         service.explore(player);
+        // Another test can sample the chunk before its blocks: a new sample reads them.
+        service.requestSample(level.dimension(), new ChunkPos(grass));
 
         helper.assertTrue(service.mask(level.dimension(), player.getUUID(), pos, level.getGameTime())
                 .isExplored(grass.getX(), grass.getZ()), "The player explores the column");
@@ -136,11 +140,12 @@ public final class ExplorationGameTests {
         ExplorationSync sync = service.sync();
 
         service.explore(player);
+        service.requestSample(level.dimension(), chunk);
         helper.succeedWhen(() -> {
             helper.assertTrue(service.region(level.dimension(), pos, level.getGameTime())
                     .sampled(chunk.x, chunk.z) != MapRegion.NEVER, "The chunk must get a sample");
-            sync.request(player.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
-            sync.request(other.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
+            sync.requestSurface(player.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
+            sync.requestSurface(other.getUUID(), level.dimension(), List.of(pos), level.getGameTime());
             helper.assertTrue(sync.pending(other.getUUID()) == 0, "The other player explored no chunk");
             ExplorationChunksPayload payload = sync.poll(player.getUUID(), ExplorationChunksPayload.MAX_CHUNKS,
                     level.getGameTime());
@@ -149,7 +154,7 @@ public final class ExplorationGameTests {
                     .filter(found -> found.x() == chunk.x && found.z() == chunk.z).findFirst().orElseThrow();
             helper.assertTrue(sent.columns().colors()[(grass.getX() & 15) + (grass.getZ() & 15) * 16]
                     == MapColor.GRASS.id, "The chunk has the color of the grass");
-            sync.request(player.getUUID(), level.dimension(), List.of(), level.getGameTime());
+            sync.requestSurface(player.getUUID(), level.dimension(), List.of(), level.getGameTime());
             sync.remove(player.getUUID());
             sync.remove(other.getUUID());
         });
@@ -196,12 +201,52 @@ public final class ExplorationGameTests {
         int pz = data.geometry().pixelZ(grass.getZ());
 
         service.explore(player);
+        service.requestSample(level.dimension(), new ChunkPos(grass));
         helper.succeedWhen(() -> {
             SurveyMapExploration.update(player, data);
             SurveyMapExploration.update(player, locked);
             helper.assertTrue((data.colors()[px + pz * 128] & 0xFF) >> 2 == MapColor.GRASS.id,
                     "The pixel of the grass has the color of the grass");
             helper.assertTrue(locked.colors()[px + pz * 128] == 0, "A locked map does not change");
+        });
+    }
+
+    /**
+     * A player under a roof of rock explores the band of caves of its height: the band gets the floor under the
+     * player, under the rock.
+     */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void playerInACaveExploresItsBand(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = new BlockPos(1, 1, 1);
+        for (int y = 2; y < 8; y++) {
+            helper.setBlock(floor.atY(y), Blocks.AIR);
+        }
+        helper.setBlock(floor, Blocks.MOSS_BLOCK);
+        BlockPos ground = helper.absolutePos(floor);
+        // The rock of the roof goes up to the top of the band of the player.
+        int top = MapSlice.caveAt(ground.getY() + 1).maxY() + 1;
+        for (int y = ground.getY() + 8; y <= top; y++) {
+            level.setBlockAndUpdate(new BlockPos(ground.getX(), y, ground.getZ()), Blocks.STONE.defaultBlockState());
+        }
+        ExplorationService service = ExplorationService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_cave"));
+        player.setPos(ground.getX() + 0.5, ground.getY() + 1, ground.getZ() + 0.5);
+        helper.assertTrue(ExplorationService.underground(player), "The player is under the roof");
+        ExplorationKey cave = new ExplorationKey(level.dimension(), MapSlice.caveAt(player.getBlockY()));
+        RegionPos pos = RegionPos.ofBlock(ground.getX(), ground.getZ());
+
+        service.explore(player);
+        service.requestSample(cave, new ChunkPos(ground));
+
+        helper.assertTrue(service.mask(cave, player.getUUID(), pos, level.getGameTime())
+                .isExplored(ground.getX(), ground.getZ()), "The player explores the column in its band");
+        helper.succeedWhen(() -> {
+            MapRegion region = service.region(cave, pos, level.getGameTime());
+            helper.assertTrue(region.sampled(ground.getX() >> 4, ground.getZ() >> 4) != MapRegion.NEVER,
+                    "The chunk of the band must get a sample");
+            helper.assertTrue(region.color(ground.getX(), ground.getZ()) == MapColor.COLOR_GREEN.id,
+                    "The band has the color of the floor: " + region.color(ground.getX(), ground.getZ()));
         });
     }
 }

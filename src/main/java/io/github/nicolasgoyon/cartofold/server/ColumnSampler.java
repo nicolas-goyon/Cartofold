@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.server;
 
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import java.util.Optional;
 import java.util.OptionalInt;
 import net.minecraft.core.BlockPos;
@@ -28,6 +29,8 @@ import net.minecraft.world.level.material.MapColor;
  */
 public final class ColumnSampler {
     private static final int MAX_DEPTH = 255;
+    /** The sampler of a band of caves reads this number of blocks under the band at most. */
+    public static final int CAVE_DEPTH = 16;
 
     private ColumnSampler() {
     }
@@ -43,7 +46,24 @@ public final class ColumnSampler {
         OptionalInt ceiling = level.dimensionType().hasCeiling()
                 ? OptionalInt.of(level.getMinBuildHeight() + level.dimensionType().logicalHeight() - 1)
                 : OptionalInt.empty();
-        return Optional.of(sample(level, chunk, ceiling));
+        return Optional.of(sample(level, chunk, ceiling, level.getMinBuildHeight()));
+    }
+
+    /**
+     * Reads the columns of a chunk in a slice. A band of caves is a dimension with a ceiling at the top of the band:
+     * the sampler gives the floor under the first air of the band, {@link #CAVE_DEPTH} blocks under the band at most.
+     *
+     * @param level the level of the chunk
+     * @param chunk the chunk
+     * @param slice the slice
+     * @return the columns
+     */
+    public static Optional<ChunkColumns> sample(Level level, LevelChunk chunk, MapSlice slice) {
+        if (slice.surface()) {
+            return sample(level, chunk);
+        }
+        int floor = Math.max(level.getMinBuildHeight(), slice.minY() - CAVE_DEPTH);
+        return Optional.of(sample(level, chunk, OptionalInt.of(slice.maxY()), floor));
     }
 
     /**
@@ -55,7 +75,7 @@ public final class ColumnSampler {
      * @return the columns
      */
     public static ChunkColumns sampleUnder(Level level, LevelChunk chunk, int ceiling) {
-        return sample(level, chunk, OptionalInt.of(ceiling));
+        return sample(level, chunk, OptionalInt.of(ceiling), level.getMinBuildHeight());
     }
 
     /**
@@ -64,11 +84,12 @@ public final class ColumnSampler {
      * @param level   the level of the chunk
      * @param chunk   the chunk
      * @param ceiling the Y of the top of the ceiling, or empty for a dimension with no ceiling
+     * @param floor   the lowest Y that the sampler reads
      * @return the columns
      */
-    static ChunkColumns sample(Level level, LevelChunk chunk, OptionalInt ceiling) {
+    static ChunkColumns sample(Level level, LevelChunk chunk, OptionalInt ceiling, int floor) {
         ChunkColumns columns = ChunkColumns.empty();
-        int minY = level.getMinBuildHeight();
+        int minY = floor;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos below = new BlockPos.MutableBlockPos();
         int baseX = chunk.getPos().getMinBlockX();

@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +30,7 @@ class ClientExplorationTest {
         columns.colors()[0] = 7;
         RegionPos pos = RegionPos.ofChunk(-1, 2);
 
-        store.accept(new ExplorationChunksPayload(OVERWORLD, List.of(new ExplorationChunksPayload.Chunk(-1, 2,
+        store.accept(new ExplorationChunksPayload(ExplorationKey.surface(OVERWORLD), List.of(new ExplorationChunksPayload.Chunk(-1, 2,
                 columns))));
 
         MapRegion region = store.region(OVERWORLD, pos).orElseThrow();
@@ -44,10 +46,10 @@ class ClientExplorationTest {
         RegionPos pos = RegionPos.ofChunk(0, 0);
         assertEquals(0, store.version(OVERWORLD, pos));
 
-        store.accept(new ExplorationChunksPayload(OVERWORLD, List.of(new ExplorationChunksPayload.Chunk(0, 0,
+        store.accept(new ExplorationChunksPayload(ExplorationKey.surface(OVERWORLD), List.of(new ExplorationChunksPayload.Chunk(0, 0,
                 ChunkColumns.empty()))));
         long first = store.version(OVERWORLD, pos);
-        store.accept(new ExplorationChunksPayload(OVERWORLD, List.of(new ExplorationChunksPayload.Chunk(1, 0,
+        store.accept(new ExplorationChunksPayload(ExplorationKey.surface(OVERWORLD), List.of(new ExplorationChunksPayload.Chunk(1, 0,
                 ChunkColumns.empty()))));
 
         assertTrue(store.version(OVERWORLD, pos) > first);
@@ -60,13 +62,13 @@ class ClientExplorationTest {
     void storeFreesTheOldRegionsOutOfTheRequest() {
         ClientExploration store = new ClientExploration();
         for (int i = 0; i < ClientExploration.MAX_REGIONS + 10; i++) {
-            store.accept(new ExplorationChunksPayload(OVERWORLD, List.of(new ExplorationChunksPayload.Chunk(i * 32, 0,
+            store.accept(new ExplorationChunksPayload(ExplorationKey.surface(OVERWORLD), List.of(new ExplorationChunksPayload.Chunk(i * 32, 0,
                     ChunkColumns.empty()))));
         }
         RegionPos oldest = RegionPos.ofChunk(0, 0);
         RegionPos second = RegionPos.ofChunk(32, 0);
 
-        store.retain(OVERWORLD, List.of(oldest));
+        store.retain(Map.of(ExplorationKey.surface(OVERWORLD), List.of(oldest)));
 
         assertEquals(ClientExploration.MAX_REGIONS, store.size());
         assertTrue(store.region(OVERWORLD, oldest).isPresent(), "A region of the request stays");

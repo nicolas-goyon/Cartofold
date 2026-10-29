@@ -2,6 +2,7 @@ package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.netty.handler.codec.DecoderException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -12,21 +13,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 
 /**
- * Server to client: the map data of explored chunks of a dimension. The chunks are compressed together.
+ * Server to client: the map data of explored chunks of a slice of a dimension. The chunks are compressed together.
  *
- * @param dimension the dimension of the chunks
- * @param chunks    the chunks, {@link #MAX_CHUNKS} at most
+ * @param key    the dimension and the slice of the chunks
+ * @param chunks the chunks, {@link #MAX_CHUNKS} at most
  */
-public record ExplorationChunksPayload(ResourceKey<Level> dimension, List<Chunk> chunks)
+public record ExplorationChunksPayload(ExplorationKey key, List<Chunk> chunks)
         implements CustomPacketPayload {
     /** The largest number of chunks in one payload: 256 KiB of data before the compression. */
     public static final int MAX_CHUNKS = 256;
@@ -55,13 +53,13 @@ public record ExplorationChunksPayload(ResourceKey<Level> dimension, List<Chunk>
     }
 
     private static void write(RegistryFriendlyByteBuf buf, ExplorationChunksPayload payload) {
-        ResourceKey.streamCodec(Registries.DIMENSION).encode(buf, payload.dimension());
+        ExplorationKey.STREAM_CODEC.encode(buf, payload.key());
         buf.writeByteArray(compress(payload.chunks()));
     }
 
     private static ExplorationChunksPayload read(RegistryFriendlyByteBuf buf) {
-        ResourceKey<Level> dimension = ResourceKey.streamCodec(Registries.DIMENSION).decode(buf);
-        return new ExplorationChunksPayload(dimension, decompress(buf.readByteArray()));
+        ExplorationKey key = ExplorationKey.STREAM_CODEC.decode(buf);
+        return new ExplorationChunksPayload(key, decompress(buf.readByteArray()));
     }
 
     /** The chunks as compressed bytes. */

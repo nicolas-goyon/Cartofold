@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -16,15 +17,31 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 /**
- * Client to server: the client needs the exploration data of regions of a dimension. The server sends the explored
- * chunks of these regions, then their changes (see {@link ExplorationChunksPayload}).
+ * Client to server: the client needs the exploration data of regions of slices of a dimension: the surface, and a band
+ * of caves (see {@link MapSlice}). The server sends the explored chunks of these regions, then their changes (see
+ * {@link ExplorationChunksPayload}). A request replaces the last request.
  *
  * @param dimension the dimension of the regions
- * @param regions   the regions, {@link #MAX_REGIONS} at most
+ * @param slices    the regions of each slice, {@link #MAX_SLICES} slices at most
  */
-public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<RegionPos> regions)
+public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<SliceRegions> slices)
         implements CustomPacketPayload {
-    /** The largest number of regions in one request. */
+    /** The largest number of slices in one request. */
+    public static final int MAX_SLICES = 4;
+
+    /**
+     * The regions of a slice.
+     *
+     * @param slice   the slice
+     * @param regions the regions, {@link #MAX_REGIONS} at most
+     */
+    public record SliceRegions(MapSlice slice, List<RegionPos> regions) {
+        public SliceRegions {
+            regions = List.copyOf(regions);
+        }
+    }
+
+    /** The largest number of regions of a slice in one request. */
     public static final int MAX_REGIONS = 128;
 
     public static final Type<ExplorationRequestPayload> TYPE =
@@ -35,14 +52,19 @@ public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<Regio
             ByteBufCodecs.VAR_INT, RegionPos::z,
             RegionPos::new);
 
+    private static final StreamCodec<FriendlyByteBuf, SliceRegions> SLICE_CODEC = StreamCodec.composite(
+            MapSlice.STREAM_CODEC, SliceRegions::slice,
+            REGION_CODEC.apply(ByteBufCodecs.list(MAX_REGIONS)), SliceRegions::regions,
+            SliceRegions::new);
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ExplorationRequestPayload> STREAM_CODEC =
             StreamCodec.composite(
                     ResourceKey.streamCodec(Registries.DIMENSION), ExplorationRequestPayload::dimension,
-                    REGION_CODEC.apply(ByteBufCodecs.list(MAX_REGIONS)), ExplorationRequestPayload::regions,
+                    SLICE_CODEC.apply(ByteBufCodecs.list(MAX_SLICES)), ExplorationRequestPayload::slices,
                     ExplorationRequestPayload::new);
 
     public ExplorationRequestPayload {
-        regions = List.copyOf(regions);
+        slices = List.copyOf(slices);
     }
 
     /**

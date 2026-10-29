@@ -2,8 +2,10 @@ package io.github.nicolasgoyon.cartofold.server;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.ExploredMask;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
@@ -25,9 +27,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
@@ -52,12 +56,18 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  *       {@link #UNLOAD_TICKS} ticks goes out of memory, after its save.</li>
  *   <li>The save of the world writes the changed regions and masks on the IO threads of the game. The stop of the
  *       server writes them before the end.</li>
+ *   <li>A player in a cave (see {@link #underground}) also explores the band of caves of its height (see
+ *       {@link MapSlice}), within {@link #CAVE_RADIUS} chunks.</li>
  *   <li>The service sends the explored chunks to the clients (see {@link ExplorationSync}).</li>
  * </ul>
  */
 public final class ExplorationService {
     /** The service checks the chunks near each player every this number of ticks. */
     public static final int CHECK_TICKS = 20;
+    /** The largest radius of the exploration of the caves around a player in a cave, in chunks. */
+    public static final int CAVE_RADIUS = 6;
+    /** A player this number of blocks or more under the surface of its column is in a cave. */
+    public static final int UNDERGROUND_DEPTH = 5;
     /** The largest radius of the exploration around a player, in chunks. */
     public static final int MAX_RADIUS = 12;
     /** A chunk gets a new sample after this number of ticks. */
@@ -72,10 +82,10 @@ public final class ExplorationService {
 
     private final MinecraftServer server;
     private final ExplorationStorage storage;
-    private final Map<ResourceKey<Level>, LevelData> levels = new HashMap<>();
+    private final Map<ExplorationKey, LevelData> levels = new HashMap<>();
     private final ExplorationSync sync = new ExplorationSync(this);
 
-    /** The data of one level. */
+    /** The data of one slice of a dimension. */
     private static final class LevelData {
         final Map<RegionPos, Used<MapRegion>> regions = new HashMap<>();
         final Map<UUID, Map<RegionPos, Used<ExploredMask>>> masks = new HashMap<>();
@@ -156,7 +166,7 @@ public final class ExplorationService {
      */
     public static void onRequest(ExplorationRequestPayload payload, IPayloadContext context) {
         if (instance != null && context.player() instanceof ServerPlayer player) {
-            instance.sync.request(player.getUUID(), payload.dimension(), payload.regions(), instance.now());
+            instance.sync.request(player.getUUID(), payload.dimension(), payload.slices(), instance.now());
         }
     }
 
@@ -181,8 +191,8 @@ public final class ExplorationService {
         }
     }
 
-    private LevelData data(ResourceKey<Level> level) {
-        return levels.computeIfAbsent(level, key -> new LevelData());
+    private LevelData data(ExplorationKey key) {
+        return levels.computeIfAbsent(key, ignored -> new LevelData());
     }
 
     private long now() {
@@ -197,9 +207,29 @@ public final class ExplorationService {
      */
     public void explore(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        LevelData data = data(level.dimension());
-        long now = now();
         int radius = Math.min(MAX_RADIUS, server.getPlayerList().getViewDistance());
+        explore(player, ExplorationKey.surface(level.dimension()), radius);
+        if (underground(player)) {
+            explore(player, new ExplorationKey(level.dimension(), MapSlice.caveAt(player.getBlockY())),
+                    Math.min(CAVE_RADIUS, radius));
+        }
+    }
+
+    /**
+     * True if a player is in a cave: in a dimension with no ceiling, {@link #UNDERGROUND_DEPTH} blocks or more under
+     * the surface of its column.
+     */
+    public static boolean underground(Player player) {
+        Level level = player.level();
+        return !level.dimensionType().hasCeiling() && level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                player.getBlockX(), player.getBlockZ()) - player.getBlockY() >= UNDERGROUND_DEPTH;
+    }
+
+    /** Explores the loaded chunks of a slice within a radius of a player. */
+    private void explore(ServerPlayer player, ExplorationKey key, int radius) {
+        ServerLevel level = player.serverLevel();
+        LevelData data = data(key);
+        long now = now();
         ChunkPos center = player.chunkPosition();
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -209,10 +239,10 @@ public final class ExplorationService {
                     continue;
                 }
                 RegionPos pos = RegionPos.ofChunk(chunkX, chunkZ);
-                if (mask(level.dimension(), player.getUUID(), pos, now).markChunk(chunkX, chunkZ)) {
-                    sync.explored(player.getUUID(), level.dimension(), new ChunkPos(chunkX, chunkZ), now);
+                if (mask(key, player.getUUID(), pos, now).markChunk(chunkX, chunkZ)) {
+                    sync.explored(player.getUUID(), key, new ChunkPos(chunkX, chunkZ), now);
                 }
-                long sampled = region(level.dimension(), pos, now).sampled(chunkX, chunkZ);
+                long sampled = region(key, pos, now).sampled(chunkX, chunkZ);
                 if (sampled == MapRegion.NEVER || now - sampled >= RESAMPLE_TICKS) {
                     data.queue.add(new ChunkPos(chunkX, chunkZ));
                 }
@@ -227,20 +257,25 @@ public final class ExplorationService {
      * @param chunk the chunk
      */
     public void requestSample(ResourceKey<Level> level, ChunkPos chunk) {
-        data(level).queue.add(chunk);
+        data(ExplorationKey.surface(level)).queue.add(chunk);
+    }
+
+    /** Puts a loaded chunk of a slice in the queue of the samples, also with a recent sample. */
+    public void requestSample(ExplorationKey key, ChunkPos chunk) {
+        data(key).queue.add(chunk);
     }
 
     /** Reads the next chunks of the queues, then frees the regions and the masks with no recent use. */
     void tick() {
         int budget = SAMPLES_PER_TICK;
         long now = now();
-        for (Map.Entry<ResourceKey<Level>, LevelData> entry : levels.entrySet()) {
-            ServerLevel level = server.getLevel(entry.getKey());
+        for (Map.Entry<ExplorationKey, LevelData> entry : levels.entrySet()) {
+            ServerLevel level = server.getLevel(entry.getKey().dimension());
             Iterator<ChunkPos> queue = entry.getValue().queue.iterator();
             while (budget > 0 && queue.hasNext()) {
                 ChunkPos chunk = queue.next();
                 queue.remove();
-                if (level != null && sample(level, chunk, now)) {
+                if (level != null && sample(level, entry.getKey(), chunk, now)) {
                     budget--;
                 }
             }
@@ -255,35 +290,45 @@ public final class ExplorationService {
      *
      * @return true if the chunk was loaded
      */
-    boolean sample(ServerLevel level, ChunkPos pos, long now) {
+    boolean sample(ServerLevel level, ExplorationKey key, ChunkPos pos, long now) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
         if (chunk == null) {
             return false;
         }
-        Optional<ChunkColumns> columns = ColumnSampler.sample(level, chunk);
+        Optional<ChunkColumns> columns = ColumnSampler.sample(level, chunk, key.slice());
         if (columns.isPresent()) {
-            MapRegion region = region(level.dimension(), RegionPos.ofChunk(pos.x, pos.z), now);
+            MapRegion region = region(key, RegionPos.ofChunk(pos.x, pos.z), now);
             boolean first = region.sampled(pos.x, pos.z) == MapRegion.NEVER;
             if (region.put(pos.x, pos.z, columns.get(), now) || first) {
-                sync.changed(level.dimension(), pos, now);
+                sync.changed(key, pos, now);
             }
         }
         return true;
     }
 
-    /** The map data of a region, from the memory or from the disk. A new region has no data. */
+    /** The map data of a region of the surface, from the memory or from the disk. A new region has no data. */
     public MapRegion region(ResourceKey<Level> level, RegionPos pos, long now) {
-        Used<MapRegion> used = data(level).regions.computeIfAbsent(pos, key -> new Used<>(
-                load(() -> storage.readRegion(level, key), () -> new MapRegion(key), key), now));
+        return region(ExplorationKey.surface(level), pos, now);
+    }
+
+    /** The map data of a region of a slice, from the memory or from the disk. A new region has no data. */
+    public MapRegion region(ExplorationKey key, RegionPos pos, long now) {
+        Used<MapRegion> used = data(key).regions.computeIfAbsent(pos, region -> new Used<>(
+                load(() -> storage.readRegion(key, region), () -> new MapRegion(region), region), now));
         used.lastUse = now;
         return used.value;
     }
 
-    /** The explored columns of a region for a player, from the memory or from the disk. */
+    /** The explored columns of a region of the surface for a player, from the memory or from the disk. */
     public ExploredMask mask(ResourceKey<Level> level, UUID player, RegionPos pos, long now) {
-        Used<ExploredMask> used = data(level).masks.computeIfAbsent(player, key -> new HashMap<>())
-                .computeIfAbsent(pos, key -> new Used<>(load(() -> storage.readMask(level, player, key),
-                        () -> new ExploredMask(key), key), now));
+        return mask(ExplorationKey.surface(level), player, pos, now);
+    }
+
+    /** The explored columns of a region of a slice for a player, from the memory or from the disk. */
+    public ExploredMask mask(ExplorationKey key, UUID player, RegionPos pos, long now) {
+        Used<ExploredMask> used = data(key).masks.computeIfAbsent(player, ignored -> new HashMap<>())
+                .computeIfAbsent(pos, region -> new Used<>(load(() -> storage.readMask(key, player, region),
+                        () -> new ExploredMask(region), region), now));
         used.lastUse = now;
         return used.value;
     }
@@ -310,8 +355,8 @@ public final class ExplorationService {
      */
     void saveAll(boolean wait) {
         List<CompletableFuture<Void>> writes = new ArrayList<>();
-        for (Map.Entry<ResourceKey<Level>, LevelData> entry : levels.entrySet()) {
-            ResourceKey<Level> level = entry.getKey();
+        for (Map.Entry<ExplorationKey, LevelData> entry : levels.entrySet()) {
+            ExplorationKey level = entry.getKey();
             for (Used<MapRegion> used : entry.getValue().regions.values()) {
                 if (used.value.isDirty()) {
                     writes.add(write(storage.regionFile(level, used.value.pos()), () -> ExplorationStorage
