@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.nicolasgoyon.cartofold.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MapItemSavedDataMixin"
+  ],
+  "client": [
+    "client.MapRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
