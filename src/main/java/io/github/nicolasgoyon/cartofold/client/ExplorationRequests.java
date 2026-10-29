@@ -5,8 +5,11 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
@@ -20,7 +23,8 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Tells the server the regions near the player and the regions of the open view (the map of the world): the server
+ * Tells the server the regions near the player and the regions of the open views (the map of the world, the map
+ * frames): the server
  * then sends their explored chunks (see {@link ClientExploration}). The client sends a new request when these regions
  * change.
  */
@@ -30,14 +34,19 @@ public final class ExplorationRequests {
     public static final int RADIUS = MapRegion.SIZE;
     /** The client checks the position of the player every this number of ticks. */
     public static final int CHECK_TICKS = 20;
+    /** The regions of a view with no update for this number of milliseconds go out of the requests. */
+    public static final long VIEW_MILLIS = 2000;
 
     @Nullable
     private static ResourceKey<Level> lastDimension;
     private static List<RegionPos> lastRegions = List.of();
     private static int ticks;
-    @Nullable
-    private static ResourceKey<Level> viewDimension;
-    private static List<RegionPos> viewRegions = List.of();
+    /** The regions of the open views, by view. */
+    private static final Map<Object, View> VIEWS = new HashMap<>();
+
+    /** The regions of a view, with the time of the last update. */
+    private record View(ResourceKey<Level> dimension, List<RegionPos> regions, long time) {
+    }
 
     private ExplorationRequests() {
     }
@@ -56,14 +65,30 @@ public final class ExplorationRequests {
     }
 
     /**
-     * Sets the regions that a view shows, in addition to the regions near the player. The next request has them.
+     * Sets the regions that a view shows, in addition to the regions near the player. A view calls this method at each
+     * draw: the regions of a view with no update for {@link #VIEW_MILLIS} milliseconds go out of the requests.
      *
-     * @param dimension the dimension of the view, or null when no view is open
+     * @param owner     the view
+     * @param dimension the dimension of the view
      * @param regions   the regions of the view
      */
-    public static void view(@Nullable ResourceKey<Level> dimension, List<RegionPos> regions) {
-        viewDimension = dimension;
-        viewRegions = List.copyOf(regions);
+    public static void view(Object owner, ResourceKey<Level> dimension, List<RegionPos> regions) {
+        VIEWS.put(owner, new View(dimension, List.copyOf(regions), Util.getMillis()));
+    }
+
+    /** Removes the regions of a view, when the view closes. */
+    public static void close(Object owner) {
+        VIEWS.remove(owner);
+    }
+
+    /** The regions of the open views of a dimension. */
+    private static List<RegionPos> viewRegions(ResourceKey<Level> dimension) {
+        long now = Util.getMillis();
+        VIEWS.values().removeIf(view -> now - view.time() > VIEW_MILLIS);
+        List<RegionPos> regions = new ArrayList<>();
+        VIEWS.values().stream().filter(view -> view.dimension().equals(dimension))
+                .forEach(view -> regions.addAll(view.regions()));
+        return regions;
     }
 
     @SubscribeEvent
@@ -80,7 +105,7 @@ public final class ExplorationRequests {
         ResourceKey<Level> dimension = player.level().dimension();
         List<RegionPos> near = regionsNear(player.getBlockX(), player.getBlockZ());
         List<RegionPos> regions = ExplorationRequestPayload.combine(near,
-                dimension.equals(viewDimension) ? viewRegions : List.of());
+                viewRegions(dimension));
         if (!dimension.equals(lastDimension) || !regions.equals(lastRegions)) {
             lastDimension = dimension;
             lastRegions = regions;
@@ -92,7 +117,7 @@ public final class ExplorationRequests {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         lastDimension = null;
         lastRegions = List.of();
-        view(null, List.of());
+        VIEWS.clear();
         ClientExploration.get().clear();
         ClientWaypoints.get().set(List.of());
         ClientLayers.get().clear();

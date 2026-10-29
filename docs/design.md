@@ -47,7 +47,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - A mod of the server gives the content of its layer to the clients with `CartofoldLayers`: for all the players (the players that join later also get it), or for one player. A new content replaces the old content. The client keeps the layers until it leaves the world.
 - A click on a clickable marker posts a `MarkerClickEvent` on the server, only for a marker that the server sent to this player.
 - A mod of the client can also draw a layer itself, with `CartofoldClientLayers` and a `MapLayerRenderer`.
-- A **map frame** is a widget for the screens of the other mods: a map view with a selection of layers, a center and a scale. For example the journal and the admin screen of Folkhold.
+- A **map frame** (`MapFrame`) is a widget for the screens of the other mods: a map view with a selection of layers, a center and a scale, the player and the waypoints. It can follow the player, and the mouse can move it, zoom it and click its markers. For example the journal and the admin screen of Folkhold. Each open view (the map of the world, each frame) asks the server for its regions.
 - The API is in its own package, with Javadoc. The jar is in GitHub Packages.
 
 ## Paper maps

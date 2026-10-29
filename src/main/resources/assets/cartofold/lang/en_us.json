@@ -57,5 +57,6 @@
   "cartofold.configuration.layers": "Layers",
   "cartofold.configuration.layers.tooltip": "The layers of the other mods. The \"Layers\" button of the map of the world also shows and hides them.",
   "cartofold.configuration.layers.hidden": "Hidden layers",
-  "cartofold.configuration.layers.hidden.tooltip": "The identifiers of the layers that the views do not show."
+  "cartofold.configuration.layers.hidden.tooltip": "The identifiers of the layers that the views do not show.",
+  "cartofold.frame": "Map"
 }

@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -52,22 +53,26 @@ public final class LayerRenderer {
                 .toString());
     }
 
-    /** Draws the visible layers of a dimension, in their order. */
+    /**
+     * Draws the visible layers of a dimension, in their order.
+     *
+     * @param layers the layers to draw, among the visible layers
+     */
     public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
-            MapViewKind kind) {
+            MapViewKind kind, Predicate<ResourceLocation> layers) {
         record Entry(int order, Runnable draw) {
         }
         List<Entry> entries = new ArrayList<>();
         Explored explored = new Explored(dimension);
         LayerRenderContext context = new LayerRenderContext(graphics, projection, dimension, kind);
         for (LayerContent content : ClientLayers.get().contents()) {
-            if (visible(content.info(), kind)) {
+            if (visible(content.info(), kind) && layers.test(content.info().id())) {
                 entries.add(new Entry(content.info().order(),
                         () -> drawContent(graphics, content, dimension, projection, kind, explored)));
             }
         }
         for (MapLayerRenderer renderer : ClientLayers.get().renderers()) {
-            if (visible(renderer.info(), kind)) {
+            if (visible(renderer.info(), kind) && layers.test(renderer.info().id())) {
                 entries.add(new Entry(renderer.info().order(), () -> renderer.render(context)));
             }
         }
@@ -177,12 +182,12 @@ public final class LayerRenderer {
 
     /** The visible marker of the layers of a dimension at a point of the screen, or empty. */
     public static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
-            double screenX, double screenY) {
+            Predicate<ResourceLocation> layers, double screenX, double screenY) {
         Hit best = null;
         double bestDistance = SELECT_DISTANCE;
         Explored explored = new Explored(dimension);
         for (LayerContent content : ClientLayers.get().contents()) {
-            if (!visible(content.info(), kind)) {
+            if (!visible(content.info(), kind) || !layers.test(content.info().id())) {
                 continue;
             }
             for (MapMarker marker : content.markers()) {

@@ -9,7 +9,6 @@ import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
 import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
-import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
@@ -77,7 +76,7 @@ public final class WorldMapScreen extends Screen {
         }
         state.track(player.getX(), player.getZ());
         MapProjection projection = projection();
-        ExplorationRequests.view(player.level().dimension(), projection.regions());
+        ExplorationRequests.view(this, player.level().dimension(), projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
         MapView.render(graphics, player.level().dimension(), projection, MapViewKind.WORLD_MAP);
@@ -96,7 +95,7 @@ public final class WorldMapScreen extends Screen {
         Component hint = Component.translatable("cartofold.worldmap.hint");
         graphics.drawString(font, hint, width - font.width(hint) - 6, height - font.lineHeight - 4, HINT);
         super.render(graphics, mouseX, mouseY, partialTick);
-        LayerRenderer.markerAt(player.level().dimension(), projection, MapViewKind.WORLD_MAP, mouseX, mouseY)
+        LayerRenderer.markerAt(player.level().dimension(), projection, MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY)
                 .flatMap(hit -> hit.marker().tooltip())
                 .ifPresent(tooltip -> graphics.renderTooltip(font, tooltip, mouseX, mouseY));
     }
@@ -114,7 +113,7 @@ public final class WorldMapScreen extends Screen {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (minecraft != null && minecraft.player != null) {
                 Optional<LayerRenderer.Hit> hit = LayerRenderer.markerAt(minecraft.player.level().dimension(),
-                        projection(), MapViewKind.WORLD_MAP, mouseX, mouseY).filter(found -> found.marker()
+                        projection(), MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY).filter(found -> found.marker()
                                 .clickable());
                 if (hit.isPresent()) {
                     PacketDistributor.sendToServer(new MarkerClickPayload(hit.get().layer(), hit.get().marker()
@@ -202,7 +201,7 @@ public final class WorldMapScreen extends Screen {
     @Override
     public void removed() {
         last = state;
-        ExplorationRequests.view(null, List.of());
+        ExplorationRequests.close(this);
     }
 
     @Override
