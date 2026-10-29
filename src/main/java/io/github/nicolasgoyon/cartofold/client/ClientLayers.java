@@ -19,6 +19,7 @@ public final class ClientLayers {
 
     private final Map<ResourceLocation, LayerContent> contents = new LinkedHashMap<>();
     private final Map<ResourceLocation, MapLayerRenderer> renderers = new LinkedHashMap<>();
+    private long version;
 
     /** Makes an empty store. The game uses {@link #get()}. */
     public ClientLayers() {
@@ -32,16 +33,24 @@ public final class ClientLayers {
     /** Sets the content of a layer of the server. */
     public synchronized void set(LayerContent content) {
         contents.put(content.info().id(), content);
+        version++;
     }
 
     /** Removes a layer of the server. */
     public synchronized void remove(ResourceLocation layer) {
         contents.remove(layer);
+        version++;
     }
 
     /** Removes the layers of the server, when the client leaves a world. */
     public synchronized void clear() {
         contents.clear();
+        version++;
+    }
+
+    /** The version of the layers of the server: it changes with each change of a layer. */
+    public synchronized long version() {
+        return version;
     }
 
     /** Adds a layer that a mod of the client draws. */
