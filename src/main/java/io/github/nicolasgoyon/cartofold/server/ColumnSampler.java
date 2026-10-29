@@ -2,6 +2,7 @@ package io.github.nicolasgoyon.cartofold.server;
 
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
 import java.util.Optional;
+import java.util.OptionalInt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
@@ -19,8 +20,10 @@ import net.minecraft.world.level.material.MapColor;
  *       sampler goes down to the first block with a map color.</li>
  *   <li>For a column of water, the depth is the number of blocks of water over the floor (255 at most). The color is the
  *       color of the water when the water block is not a full block.</li>
- *   <li>A dimension with a ceiling (the Nether) gives no data: the view at the height of the player is an open
- *       point.</li>
+ *   <li>In a dimension with a ceiling (the Nether), the sampler starts at the top of the logical height of the
+ *       dimension, goes down through the ceiling to the first block with no map color (the air under the ceiling),
+ *       then down to the first block with a map color: the floor under the ceiling. A column with no air under the
+ *       ceiling has no color.</li>
  * </ul>
  */
 public final class ColumnSampler {
@@ -34,12 +37,36 @@ public final class ColumnSampler {
      *
      * @param level the level of the chunk
      * @param chunk the chunk
-     * @return the columns, or empty for a dimension with a ceiling
+     * @return the columns
      */
     public static Optional<ChunkColumns> sample(Level level, LevelChunk chunk) {
-        if (level.dimensionType().hasCeiling()) {
-            return Optional.empty();
-        }
+        OptionalInt ceiling = level.dimensionType().hasCeiling()
+                ? OptionalInt.of(level.getMinBuildHeight() + level.dimensionType().logicalHeight() - 1)
+                : OptionalInt.empty();
+        return Optional.of(sample(level, chunk, ceiling));
+    }
+
+    /**
+     * Reads the columns of a chunk under a ceiling, for the tests in a dimension with no ceiling.
+     *
+     * @param level   the level of the chunk
+     * @param chunk   the chunk
+     * @param ceiling the Y of the top of the ceiling
+     * @return the columns
+     */
+    public static ChunkColumns sampleUnder(Level level, LevelChunk chunk, int ceiling) {
+        return sample(level, chunk, OptionalInt.of(ceiling));
+    }
+
+    /**
+     * Reads the columns of a chunk.
+     *
+     * @param level   the level of the chunk
+     * @param chunk   the chunk
+     * @param ceiling the Y of the top of the ceiling, or empty for a dimension with no ceiling
+     * @return the columns
+     */
+    static ChunkColumns sample(Level level, LevelChunk chunk, OptionalInt ceiling) {
         ChunkColumns columns = ChunkColumns.empty();
         int minY = level.getMinBuildHeight();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -52,6 +79,14 @@ public final class ColumnSampler {
                 BlockState state;
                 int depth = 0;
                 MapColor color = MapColor.NONE;
+                if (ceiling.isPresent()) {
+                    y = ceiling.getAsInt() + 1;
+                    // Down through the ceiling, to the first block with no map color.
+                    do {
+                        pos.set(baseX + x, --y, baseZ + z);
+                    } while (y > minY && chunk.getBlockState(pos).getMapColor(level, pos) != MapColor.NONE);
+                    y++;
+                }
                 if (y > minY + 1) {
                     do {
                         pos.set(baseX + x, --y, baseZ + z);
@@ -78,6 +113,6 @@ public final class ColumnSampler {
                 columns.depths()[column] = (byte) depth;
             }
         }
-        return Optional.of(columns);
+        return columns;
     }
 }
