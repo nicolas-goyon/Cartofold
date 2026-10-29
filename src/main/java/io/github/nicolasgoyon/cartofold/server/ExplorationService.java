@@ -260,6 +260,11 @@ public final class ExplorationService {
         data(ExplorationKey.surface(level)).queue.add(chunk);
     }
 
+    /** Puts a loaded chunk of a slice in the queue of the samples, also with a recent sample. */
+    public void requestSample(ExplorationKey key, ChunkPos chunk) {
+        data(key).queue.add(chunk);
+    }
+
     /** Reads the next chunks of the queues, then frees the regions and the masks with no recent use. */
     void tick() {
         int budget = SAMPLES_PER_TICK;

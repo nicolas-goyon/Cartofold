@@ -108,6 +108,8 @@ public final class ExplorationGameTests {
         RegionPos pos = RegionPos.ofBlock(grass.getX(), grass.getZ());
 
         service.explore(player);
+        // Another test can sample the chunk before its blocks: a new sample reads them.
+        service.requestSample(level.dimension(), new ChunkPos(grass));
 
         helper.assertTrue(service.mask(level.dimension(), player.getUUID(), pos, level.getGameTime())
                 .isExplored(grass.getX(), grass.getZ()), "The player explores the column");
@@ -138,6 +140,7 @@ public final class ExplorationGameTests {
         ExplorationSync sync = service.sync();
 
         service.explore(player);
+        service.requestSample(level.dimension(), chunk);
         helper.succeedWhen(() -> {
             helper.assertTrue(service.region(level.dimension(), pos, level.getGameTime())
                     .sampled(chunk.x, chunk.z) != MapRegion.NEVER, "The chunk must get a sample");
@@ -198,6 +201,7 @@ public final class ExplorationGameTests {
         int pz = data.geometry().pixelZ(grass.getZ());
 
         service.explore(player);
+        service.requestSample(level.dimension(), new ChunkPos(grass));
         helper.succeedWhen(() -> {
             SurveyMapExploration.update(player, data);
             SurveyMapExploration.update(player, locked);
@@ -233,6 +237,7 @@ public final class ExplorationGameTests {
         RegionPos pos = RegionPos.ofBlock(ground.getX(), ground.getZ());
 
         service.explore(player);
+        service.requestSample(cave, new ChunkPos(ground));
 
         helper.assertTrue(service.mask(cave, player.getUUID(), pos, level.getGameTime())
                 .isExplored(ground.getX(), ground.getZ()), "The player explores the column in its band");
