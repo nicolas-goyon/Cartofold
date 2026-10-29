@@ -53,12 +53,13 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 
 ## Paper maps
 
-- The paper maps of Cartofold are the vanilla maps: the item, the recipe, the exploration of the game, the item frames, the zoom, the copy and the lock stay the same. Thus the maps of the other mods and of the loot (for example the explorer maps) are also paper maps of Cartofold.
-- Cartofold draws its layers on the vanilla maps, in the hand and in the item frames: above the pixels of the map and below its decorations. The layers show only on the explored pixels of the map, whatever the setting "only explored" of the layer.
-- The vanilla packets do not give the center and the dimension of a map to the client. The server sends them once for each map and each player, with the first vanilla packet of the map.
-- Cartofold draws the layers in its own texture, out of the textures of the vanilla maps: ImmediatelyFast and Moonlight do not change it.
+- The paper maps of Cartofold are items of their own: the **empty survey map** and the **survey map**. The vanilla maps stay vanilla: Cartofold does not change them, so it does not compete with the other mods that change the vanilla maps. The mods that interact with the survey maps use the API of Cartofold.
+- Recipe of the empty survey map: a compass in the middle, paper on the sides and ink sacs in the corners. A use gives a survey map around the player, with the center on the grid of the vanilla maps.
+- A survey map has 128 x 128 pixels, a center, a scale and markers, as a vanilla map. The storage of the Overworld keeps its data (`cartofold_survey_map_<id>`).
+- In the hand of a player, the pixels within 128 blocks get the colors of the exploration data of Cartofold, every 10 ticks. A spyglass in the inventory makes the radius 3 times larger. The update never loads or generates a chunk: a loaded chunk with no data goes to the queue of the samples.
+- The server sends the data of a map to the players that hold it or that see it in an item frame within 64 blocks, when it changes.
+- The client draws the pixels and the layers in one texture, then the markers and the player, with the poses of the vanilla maps in the hand and in the item frames. The layers show only on the explored pixels.
 - **Waypoints**: a player marks a place on a map from a block, as with a banner: a use of the map on the block adds a decoration with a name, and a second use removes it. The lodestone is a source of Cartofold, with the pin icon `cartofold:waypoint`. Another mod adds its own blocks with `PaperMapMarkers` (for example the heart of a village of Folkhold). A waypoint of a block that goes away goes away from the map.
-- **Spyglass**: a player with a spyglass in the inventory explores the map in the hand in a radius 3 times larger than the radius of the game. The update of a map reads only the loaded chunks: it never loads or generates a chunk, also with no spyglass.
 - **Cartography table**: zoom, copy and lock, as the vanilla table. With a map and a paper, five buttons of the screen select:
   - a move of the map by half of its side to the north, the south, the west or the east (the game puts the center of a map on a fixed grid). The moved map is a new map with the same scale and the explored pixels in their new places;
   - an update of the map at a distance: when the player takes the map, the server paints its pixels from the chunks that are already generated, 1024 chunks at most (the chunks with unexplored pixels first) and 4 chunks each tick. The paper is the cost.
@@ -66,7 +67,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 
 ## Compatibility
 
-- ImmediatelyFast and Moonlight change the rendering of the vanilla maps. Cartofold draws its own textures (the tiles of its views and the layers on the vanilla maps), so they do not change them. A test in a dev client with ImmediatelyFast 1.6.14 shows the layers on the maps in the hand and in the item frames.
+- ImmediatelyFast and Moonlight change the rendering of the vanilla maps. Cartofold draws its own textures (the tiles of its views and the survey maps) and does not change the vanilla maps.
 - Xaero's Minimap and Xaero's World Map can stay with Cartofold. The modpack of Folkhold uses Cartofold in their place when the minimap and the map of the world of Cartofold are ready.
 
 ## Roadmap

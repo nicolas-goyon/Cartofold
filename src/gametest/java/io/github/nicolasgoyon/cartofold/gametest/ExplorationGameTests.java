@@ -6,6 +6,8 @@ import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
+import io.github.nicolasgoyon.cartofold.paper.SurveyMapData;
+import io.github.nicolasgoyon.cartofold.paper.SurveyMapExploration;
 import io.github.nicolasgoyon.cartofold.server.ColumnSampler;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.ExplorationSync;
@@ -174,5 +176,32 @@ public final class ExplorationGameTests {
                 + columns.colors()[column(ground)]);
         helper.assertTrue(columns.heights()[column(ground)] == ground.getY(), "The height of the floor");
         helper.succeed();
+    }
+
+    /**
+     * A survey map in the hand of a player gets the colors of the exploration data near the player. A locked map does
+     * not change.
+     */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void surveyMapExploresNearThePlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        build(helper, new BlockPos(1, 0, 0));
+        BlockPos grass = helper.absolutePos(GRASS);
+        ExplorationService service = ExplorationService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_survey"));
+        player.setPos(grass.getX() + 0.5, grass.getY() + 1, grass.getZ() + 0.5);
+        SurveyMapData data = SurveyMapData.around(level.dimension(), grass.getX(), grass.getZ(), 0);
+        SurveyMapData locked = SurveyMapData.around(level.dimension(), grass.getX(), grass.getZ(), 0).lockedCopy();
+        int px = data.geometry().pixelX(grass.getX());
+        int pz = data.geometry().pixelZ(grass.getZ());
+
+        service.explore(player);
+        helper.succeedWhen(() -> {
+            SurveyMapExploration.update(player, data);
+            SurveyMapExploration.update(player, locked);
+            helper.assertTrue((data.colors()[px + pz * 128] & 0xFF) >> 2 == MapColor.GRASS.id,
+                    "The pixel of the grass has the color of the grass");
+            helper.assertTrue(locked.colors()[px + pz * 128] == 0, "A locked map does not change");
+        });
     }
 }

@@ -65,5 +65,8 @@
   "cartofold.cartography.east": "Déplacer la carte vers l'est (avec un papier). Encore : dézoomer",
   "cartofold.cartography.update": "Mettre à jour la carte avec les terres générées (avec un papier). Encore : dézoomer",
   "cartofold.paper.waypoint.added": "Point de passage sur la carte : %s",
-  "cartofold.paper.waypoint.removed": "Point de passage retiré de la carte : %s"
+  "cartofold.paper.waypoint.removed": "Point de passage retiré de la carte : %s",
+  "item.cartofold.empty_survey_map": "Carte d'arpentage vierge",
+  "item.cartofold.survey_map": "Carte d'arpentage",
+  "item.cartofold.survey_map.numbered": "Carte d'arpentage n°%s"
 }
