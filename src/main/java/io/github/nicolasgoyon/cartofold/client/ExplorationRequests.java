@@ -1,11 +1,14 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -39,13 +42,13 @@ public final class ExplorationRequests {
 
     @Nullable
     private static ResourceKey<Level> lastDimension;
-    private static List<RegionPos> lastRegions = List.of();
+    private static List<ExplorationRequestPayload.SliceRegions> lastSlices = List.of();
     private static int ticks;
     /** The regions of the open views, by view. */
     private static final Map<Object, View> VIEWS = new HashMap<>();
 
     /** The regions of a view, with the time of the last update. */
-    private record View(ResourceKey<Level> dimension, List<RegionPos> regions, long time) {
+    private record View(ExplorationKey key, List<RegionPos> regions, long time) {
     }
 
     private ExplorationRequests() {
@@ -73,7 +76,18 @@ public final class ExplorationRequests {
      * @param regions   the regions of the view
      */
     public static void view(Object owner, ResourceKey<Level> dimension, List<RegionPos> regions) {
-        VIEWS.put(owner, new View(dimension, List.copyOf(regions), Util.getMillis()));
+        view(owner, ExplorationKey.surface(dimension), regions);
+    }
+
+    /**
+     * Sets the regions of a slice that a view shows (see {@link #view(Object, ResourceKey, List)}).
+     *
+     * @param owner   the view
+     * @param key     the dimension and the slice of the view
+     * @param regions the regions of the view
+     */
+    public static void view(Object owner, ExplorationKey key, List<RegionPos> regions) {
+        VIEWS.put(owner, new View(key, List.copyOf(regions), Util.getMillis()));
     }
 
     /** Removes the regions of a view, when the view closes. */
@@ -81,13 +95,15 @@ public final class ExplorationRequests {
         VIEWS.remove(owner);
     }
 
-    /** The regions of the open views of a dimension. */
-    private static List<RegionPos> viewRegions(ResourceKey<Level> dimension) {
+    /** The regions of the open views of a dimension, for each slice: the surface first. */
+    private static Map<MapSlice, List<RegionPos>> viewRegions(ResourceKey<Level> dimension) {
         long now = Util.getMillis();
         VIEWS.values().removeIf(view -> now - view.time() > VIEW_MILLIS);
-        List<RegionPos> regions = new ArrayList<>();
-        VIEWS.values().stream().filter(view -> view.dimension().equals(dimension))
-                .forEach(view -> regions.addAll(view.regions()));
+        Map<MapSlice, List<RegionPos>> regions = new LinkedHashMap<>();
+        regions.put(MapSlice.SURFACE, new ArrayList<>());
+        VIEWS.values().stream().filter(view -> view.key().dimension().equals(dimension))
+                .forEach(view -> regions.computeIfAbsent(view.key().slice(), slice -> new ArrayList<>())
+                        .addAll(view.regions()));
         return regions;
     }
 
@@ -104,20 +120,29 @@ public final class ExplorationRequests {
         }
         ResourceKey<Level> dimension = player.level().dimension();
         List<RegionPos> near = regionsNear(player.getBlockX(), player.getBlockZ());
-        List<RegionPos> regions = ExplorationRequestPayload.combine(near,
-                viewRegions(dimension));
-        if (!dimension.equals(lastDimension) || !regions.equals(lastRegions)) {
+        List<ExplorationRequestPayload.SliceRegions> slices = new ArrayList<>();
+        Map<ExplorationKey, List<RegionPos>> requested = new HashMap<>();
+        for (Map.Entry<MapSlice, List<RegionPos>> entry : viewRegions(dimension).entrySet()) {
+            if (slices.size() >= ExplorationRequestPayload.MAX_SLICES) {
+                break;
+            }
+            List<RegionPos> regions = ExplorationRequestPayload.combine(
+                    entry.getKey().surface() ? near : List.of(), entry.getValue());
+            slices.add(new ExplorationRequestPayload.SliceRegions(entry.getKey(), regions));
+            requested.put(new ExplorationKey(dimension, entry.getKey()), regions);
+        }
+        if (!dimension.equals(lastDimension) || !slices.equals(lastSlices)) {
             lastDimension = dimension;
-            lastRegions = regions;
-            PacketDistributor.sendToServer(new ExplorationRequestPayload(dimension, regions));
-            ClientExploration.get().retain(dimension, regions);
+            lastSlices = slices;
+            PacketDistributor.sendToServer(new ExplorationRequestPayload(dimension, slices));
+            ClientExploration.get().retain(requested);
         }
     }
 
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         lastDimension = null;
-        lastRegions = List.of();
+        lastSlices = List.of();
         VIEWS.clear();
         ClientExploration.get().clear();
         ClientWaypoints.get().set(List.of());

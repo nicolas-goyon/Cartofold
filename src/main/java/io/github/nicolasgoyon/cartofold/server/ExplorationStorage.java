@@ -1,7 +1,9 @@
 package io.github.nicolasgoyon.cartofold.server;
 
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.ExploredMask;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -11,17 +13,18 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 
 /**
  * The files of the exploration data, in the folder {@code data/cartofold/} of the world.
  *
  * <ul>
- *   <li>{@code <namespace>/<dimension>/regions/r.<x>.<z>.dat}: the map data of a region ({@link MapRegion}).</li>
- *   <li>{@code <namespace>/<dimension>/players/<uuid>/r.<x>.<z>.dat}: the explored columns of a region for a player
- *       ({@link ExploredMask}).</li>
+ *   <li>{@code <namespace>/<dimension>/regions/r.<x>.<z>.dat}: the map data of a region of the surface
+ *       ({@link MapRegion}).</li>
+ *   <li>{@code <namespace>/<dimension>/players/<uuid>/r.<x>.<z>.dat}: the explored columns of a region of the surface
+ *       for a player ({@link ExploredMask}).</li>
+ *   <li>{@code <namespace>/<dimension>/caves/<band>/regions/...} and {@code .../caves/<band>/players/...}: the same
+ *       files for a band of caves ({@link MapSlice}).</li>
  *   <li>A write goes to a temporary file, then replaces the file: a stop of the server during a write does not break
  *       the file.</li>
  * </ul>
@@ -38,19 +41,20 @@ public final class ExplorationStorage {
         this.root = root;
     }
 
-    private Path dimension(ResourceKey<Level> level) {
-        ResourceLocation id = level.location();
-        return root.resolve(id.getNamespace()).resolve(id.getPath());
+    private Path folder(ExplorationKey key) {
+        ResourceLocation id = key.dimension().location();
+        Path dimension = root.resolve(id.getNamespace()).resolve(id.getPath());
+        return key.slice().surface() ? dimension : dimension.resolve(key.slice().folder());
     }
 
     /** The file of the map data of a region. */
-    Path regionFile(ResourceKey<Level> level, RegionPos pos) {
-        return dimension(level).resolve("regions").resolve(pos.fileName());
+    Path regionFile(ExplorationKey key, RegionPos pos) {
+        return folder(key).resolve("regions").resolve(pos.fileName());
     }
 
     /** The file of the explored columns of a region for a player. */
-    Path maskFile(ResourceKey<Level> level, UUID player, RegionPos pos) {
-        return dimension(level).resolve("players").resolve(player.toString()).resolve(pos.fileName());
+    Path maskFile(ExplorationKey key, UUID player, RegionPos pos) {
+        return folder(key).resolve("players").resolve(player.toString()).resolve(pos.fileName());
     }
 
     /**
@@ -59,8 +63,8 @@ public final class ExplorationStorage {
      * @return the region, or empty with no file
      * @throws IOException if the file is not valid
      */
-    public Optional<MapRegion> readRegion(ResourceKey<Level> level, RegionPos pos) throws IOException {
-        Path file = regionFile(level, pos);
+    public Optional<MapRegion> readRegion(ExplorationKey key, RegionPos pos) throws IOException {
+        Path file = regionFile(key, pos);
         if (!Files.isRegularFile(file)) {
             return Optional.empty();
         }
@@ -75,8 +79,8 @@ public final class ExplorationStorage {
      * @return the mask, or empty with no file
      * @throws IOException if the file is not valid
      */
-    public Optional<ExploredMask> readMask(ResourceKey<Level> level, UUID player, RegionPos pos) throws IOException {
-        Path file = maskFile(level, player, pos);
+    public Optional<ExploredMask> readMask(ExplorationKey key, UUID player, RegionPos pos) throws IOException {
+        Path file = maskFile(key, player, pos);
         if (!Files.isRegularFile(file)) {
             return Optional.empty();
         }

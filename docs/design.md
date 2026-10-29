@@ -21,7 +21,9 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - A region or a mask with no use for 5 minutes goes out of memory, after its save.
 - The server sends to each client the chunks that the player explored in the regions near the player, and in the regions that a view asks for (the map of the world). After the first send, it sends only the changed chunks. The map data of the chunks that the player did not explore stays on the server.
 - The client keeps 160 regions at most (about 1 MiB each). The regions of the last request stay; the other regions go out, the oldest change first. The server sends a region again when a request has it again.
-- In a dimension with a ceiling (the Nether), the map shows the floor under the ceiling: the sampler goes down from the top of the logical height through the ceiling to the air, then to the first block with a color. The caves of the Overworld have no view of their own.
+- In a dimension with a ceiling (the Nether), the map shows the floor under the ceiling: the sampler goes down from the top of the logical height through the ceiling to the air, then to the first block with a color.
+- **Caves**: the server also records slices of the caves, in bands of 16 blocks of height (`MapSlice`). A player 5 blocks or more under the surface of its column explores the band of its height, within 6 chunks. In a band, the sampler starts at the top of the band, goes down through the rock to the air, then to the first block with a color (16 blocks under the band at most). The files of a band are in `<dimension>/caves/<band>/`.
+- A request of a client gives the regions of each slice that it shows: the surface, and the bands of caves of its views. The server sends the chunks of each slice that the player explored.
 
 ### Tiles
 

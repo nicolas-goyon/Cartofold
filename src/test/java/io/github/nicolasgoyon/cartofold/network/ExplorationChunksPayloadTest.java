@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.netty.handler.codec.DecoderException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,8 @@ class ExplorationChunksPayloadTest {
         List<ExplorationChunksPayload.Chunk> chunks = new ArrayList<>(Collections.nCopies(
                 ExplorationChunksPayload.MAX_CHUNKS + 1, new ExplorationChunksPayload.Chunk(0, 0, columns(0))));
         assertThrows(IllegalArgumentException.class, () -> new ExplorationChunksPayload(
-                ResourceKey.create(Registries.DIMENSION, ResourceLocation.withDefaultNamespace("overworld")), chunks));
+                ExplorationKey.surface(ResourceKey.create(Registries.DIMENSION,
+                        ResourceLocation.withDefaultNamespace("overworld"))), chunks));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold.client;
 
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
@@ -33,7 +34,7 @@ public final class ClientExploration {
 
     private static final ClientExploration INSTANCE = new ClientExploration();
 
-    private final Map<ResourceKey<Level>, Map<RegionPos, Versioned>> dimensions = new HashMap<>();
+    private final Map<ExplorationKey, Map<RegionPos, Versioned>> dimensions = new HashMap<>();
     private long version;
 
     /** A region with the number of its changes. */
@@ -61,7 +62,7 @@ public final class ClientExploration {
      * @param payload the chunks from the server
      */
     public synchronized void accept(ExplorationChunksPayload payload) {
-        Map<RegionPos, Versioned> regions = dimensions.computeIfAbsent(payload.dimension(), key -> new HashMap<>());
+        Map<RegionPos, Versioned> regions = dimensions.computeIfAbsent(payload.key(), key -> new HashMap<>());
         version++;
         for (ExplorationChunksPayload.Chunk chunk : payload.chunks()) {
             RegionPos pos = RegionPos.ofChunk(chunk.x(), chunk.z());
@@ -71,14 +72,24 @@ public final class ClientExploration {
         }
     }
 
-    /** The data of a region, or empty if the client has no chunk of it. */
-    public synchronized Optional<MapRegion> region(ResourceKey<Level> dimension, RegionPos pos) {
-        return Optional.ofNullable(dimensions.getOrDefault(dimension, Map.of()).get(pos)).map(used -> used.region);
+    /** The data of a region of the surface, or empty if the client has no chunk of it. */
+    public Optional<MapRegion> region(ResourceKey<Level> dimension, RegionPos pos) {
+        return region(ExplorationKey.surface(dimension), pos);
+    }
+
+    /** The data of a region of a slice, or empty if the client has no chunk of it. */
+    public synchronized Optional<MapRegion> region(ExplorationKey key, RegionPos pos) {
+        return Optional.ofNullable(dimensions.getOrDefault(key, Map.of()).get(pos)).map(used -> used.region);
+    }
+
+    /** The version of a region of the surface (see {@link #version(ExplorationKey, RegionPos)}). */
+    public long version(ResourceKey<Level> dimension, RegionPos pos) {
+        return version(ExplorationKey.surface(dimension), pos);
     }
 
     /** The version of a region: it changes with each change of the region. 0 for a region with no data. */
-    public synchronized long version(ResourceKey<Level> dimension, RegionPos pos) {
-        Versioned versioned = dimensions.getOrDefault(dimension, Map.of()).get(pos);
+    public synchronized long version(ExplorationKey key, RegionPos pos) {
+        Versioned versioned = dimensions.getOrDefault(key, Map.of()).get(pos);
         return versioned == null ? 0 : versioned.version;
     }
 
@@ -91,23 +102,25 @@ public final class ClientExploration {
      * Frees regions when the store has more than {@link #MAX_REGIONS} regions. The regions of the last request stay.
      * The other regions go out, the oldest change first. The server sends a region again when a request has it again.
      *
-     * @param dimension the dimension of the last request
-     * @param requested the regions of the last request
+     * @param requested the regions of each slice of the last request
      */
-    public synchronized void retain(ResourceKey<Level> dimension, Collection<RegionPos> requested) {
+    public synchronized void retain(Map<ExplorationKey, ? extends Collection<RegionPos>> requested) {
         int excess = size() - MAX_REGIONS;
         if (excess <= 0) {
             return;
         }
-        Set<RegionPos> kept = new HashSet<>(requested);
-        record Candidate(ResourceKey<Level> dimension, RegionPos pos, long version) {
+        record Candidate(ExplorationKey dimension, RegionPos pos, long version) {
         }
         List<Candidate> candidates = new ArrayList<>();
-        dimensions.forEach((key, regions) -> regions.forEach((pos, versioned) -> {
-            if (!key.equals(dimension) || !kept.contains(pos)) {
-                candidates.add(new Candidate(key, pos, versioned.version));
-            }
-        }));
+        dimensions.forEach((key, regions) -> {
+            Collection<RegionPos> requestedRegions = requested.get(key);
+            Set<RegionPos> kept = requestedRegions == null ? Set.of() : new HashSet<>(requestedRegions);
+            regions.forEach((pos, versioned) -> {
+                if (!kept.contains(pos)) {
+                    candidates.add(new Candidate(key, pos, versioned.version));
+                }
+            });
+        });
         candidates.sort(Comparator.comparingLong(Candidate::version));
         for (Candidate candidate : candidates.subList(0, Math.min(excess, candidates.size()))) {
             dimensions.get(candidate.dimension()).remove(candidate.pos());
