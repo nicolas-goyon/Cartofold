@@ -10,7 +10,26 @@ The mod does not depend on other mods. It is necessary on the server and on the 
 
 ## Status
 
-The project is at its start. The plan is in [docs/design.md](docs/design.md) and in the milestones of the issues.
+- The map engine, the minimap, the map of the world, the waypoints of the player and the settings are ready.
+- The API for the other mods is ready: layers and map frames.
+- The paper maps are the next milestone.
+
+The plan is in [docs/design.md](docs/design.md) and in the milestones of the issues.
+
+## Keys
+
+| Key | Action |
+| --- | --- |
+| M | Open the map of the world |
+| Y | Show or hide the minimap |
+| `[` and `]` | Zoom out and zoom in the minimap |
+| B | Add a waypoint at the player |
+
+The settings screen opens from the list of the mods and from the map of the world.
+
+## API
+
+Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release puts the jar in GitHub Packages.
 
 ## Development
 
