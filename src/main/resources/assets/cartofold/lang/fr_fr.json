@@ -58,5 +58,10 @@
   "cartofold.configuration.layers.tooltip": "Les calques des autres mods. Le bouton « Calques » de la carte du monde les affiche et les masque aussi.",
   "cartofold.configuration.layers.hidden": "Calques masqués",
   "cartofold.configuration.layers.hidden.tooltip": "Les identifiants des calques que les vues n'affichent pas.",
-  "cartofold.frame": "Carte"
+  "cartofold.frame": "Carte",
+  "cartofold.cartography.north": "Déplacer la carte vers le nord (avec un papier). Encore : dézoomer",
+  "cartofold.cartography.south": "Déplacer la carte vers le sud (avec un papier). Encore : dézoomer",
+  "cartofold.cartography.west": "Déplacer la carte vers l'ouest (avec un papier). Encore : dézoomer",
+  "cartofold.cartography.east": "Déplacer la carte vers l'est (avec un papier). Encore : dézoomer",
+  "cartofold.cartography.update": "Mettre à jour la carte avec les terres générées (avec un papier). Encore : dézoomer"
 }
