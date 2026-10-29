@@ -3,9 +3,16 @@ package io.github.nicolasgoyon.cartofold.client;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
+import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
@@ -18,6 +25,12 @@ import net.minecraft.world.level.Level;
  * <p>This class uses no class of the client: the payload handler on the common side can call it.
  */
 public final class ClientExploration {
+    /**
+     * The largest number of regions in the store, when the regions of the last request are fewer. A region is about 1
+     * MiB in memory.
+     */
+    public static final int MAX_REGIONS = ExplorationRequestPayload.MAX_REGIONS + 32;
+
     private static final ClientExploration INSTANCE = new ClientExploration();
 
     private final Map<ResourceKey<Level>, Map<RegionPos, Versioned>> dimensions = new HashMap<>();
@@ -67,6 +80,40 @@ public final class ClientExploration {
     public synchronized long version(ResourceKey<Level> dimension, RegionPos pos) {
         Versioned versioned = dimensions.getOrDefault(dimension, Map.of()).get(pos);
         return versioned == null ? 0 : versioned.version;
+    }
+
+    /** The number of regions in the store, in all the dimensions. */
+    public synchronized int size() {
+        return dimensions.values().stream().mapToInt(Map::size).sum();
+    }
+
+    /**
+     * Frees regions when the store has more than {@link #MAX_REGIONS} regions. The regions of the last request stay.
+     * The other regions go out, the oldest change first. The server sends a region again when a request has it again.
+     *
+     * @param dimension the dimension of the last request
+     * @param requested the regions of the last request
+     */
+    public synchronized void retain(ResourceKey<Level> dimension, Collection<RegionPos> requested) {
+        int excess = size() - MAX_REGIONS;
+        if (excess <= 0) {
+            return;
+        }
+        Set<RegionPos> kept = new HashSet<>(requested);
+        record Candidate(ResourceKey<Level> dimension, RegionPos pos, long version) {
+        }
+        List<Candidate> candidates = new ArrayList<>();
+        dimensions.forEach((key, regions) -> regions.forEach((pos, versioned) -> {
+            if (!key.equals(dimension) || !kept.contains(pos)) {
+                candidates.add(new Candidate(key, pos, versioned.version));
+            }
+        }));
+        candidates.sort(Comparator.comparingLong(Candidate::version));
+        for (Candidate candidate : candidates.subList(0, Math.min(excess, candidates.size()))) {
+            dimensions.get(candidate.dimension()).remove(candidate.pos());
+        }
+        dimensions.values().removeIf(Map::isEmpty);
+        version++;
     }
 
     /** The version of the store: it changes with each change of a region. */
