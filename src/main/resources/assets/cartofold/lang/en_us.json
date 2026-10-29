@@ -15,7 +15,7 @@
   "key.cartofold.open_map": "Open the map of the world",
   "cartofold.worldmap.title": "Map of the world",
   "cartofold.worldmap.coordinates": "X %s, Z %s",
-  "cartofold.worldmap.hint": "Drag: move · Wheel: zoom · Right click: waypoint · Space: center",
+  "cartofold.worldmap.hint": "Drag: move · Wheel: zoom · Right click: waypoint · Space: center · Page Up/Down: caves",
   "key.cartofold.add_waypoint": "Add a waypoint",
   "cartofold.waypoint": "Waypoint",
   "cartofold.waypoint.death": "Death",
@@ -68,5 +68,10 @@
   "cartofold.paper.waypoint.removed": "Waypoint removed from the map: %s",
   "item.cartofold.empty_survey_map": "Empty Survey Map",
   "item.cartofold.survey_map": "Survey Map",
-  "item.cartofold.survey_map.numbered": "Survey Map #%s"
+  "item.cartofold.survey_map.numbered": "Survey Map #%s",
+  "cartofold.slice.surface": "Surface",
+  "cartofold.slice.caves": "Caves: Y %s to %s",
+  "cartofold.minimap.caves": "%s (caves)",
+  "cartofold.configuration.minimap.caves": "Caves",
+  "cartofold.configuration.minimap.caves.tooltip": "In a cave, the minimap shows the caves at the height of the player. The map of the world opens on the caves too."
 }

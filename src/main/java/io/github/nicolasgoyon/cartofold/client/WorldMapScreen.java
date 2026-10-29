@@ -2,7 +2,9 @@ package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.api.MapViewKind;
+import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
@@ -28,7 +30,8 @@ import org.lwjgl.glfw.GLFW;
  * The map of the explored world. The mouse moves the map, the wheel changes the zoom, the arrow keys move the map and
  * the space key puts the player at the center. The right button of the mouse adds a waypoint, or changes the waypoint
  * under the mouse. The left button on a marker of a layer sends the click to the server, and the "Layers" button shows
- * and hides the layers.
+ * and hides the layers. The button at the top left and the keys Page Up, Page Down and Home select the surface or a
+ * band of caves.
  */
 public final class WorldMapScreen extends Screen {
     private static final int BACKGROUND = 0xFF101010;
@@ -37,17 +40,40 @@ public final class WorldMapScreen extends Screen {
     /** An arrow key moves the map by this part of the screen. */
     private static final double KEY_MOVE = 1.0 / 8;
     private static final int SETTINGS_WIDTH = 80;
+    private static final int SLICE_WIDTH = 130;
     /** The state of the last map: the next map opens at the same scale. */
     @Nullable
     private static WorldMapState last;
 
     private final WorldMapState state;
     private boolean dragging;
+    /** The slice of the map: the surface or a band of caves. */
+    private MapSlice slice;
+    @Nullable
+    private Button sliceButton;
 
     public WorldMapScreen(LocalPlayer player) {
         super(Component.translatable("cartofold.worldmap.title"));
         double scale = last == null ? 1 : last.scale();
         this.state = new WorldMapState(player.getX(), player.getZ(), scale);
+        this.slice = MapSlices.of(player);
+    }
+
+    /** Shows another slice: the surface, or a band of caves. */
+    private void showSlice(MapSlice next) {
+        slice = next;
+        if (sliceButton != null) {
+            sliceButton.setMessage(MapSlices.label(slice));
+        }
+    }
+
+    /** The band of caves next to the slice of the map (up or down), or the band of the player from the surface. */
+    private MapSlice nextBand(int step) {
+        if (slice.surface()) {
+            return minecraft == null || minecraft.player == null ? MapSlice.caveAt(0)
+                    : MapSlice.caveAt(minecraft.player.getBlockY());
+        }
+        return new MapSlice(slice.band() + step);
     }
 
     @Override
@@ -61,6 +87,9 @@ public final class WorldMapScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("cartofold.worldmap.layers"),
                 button -> minecraft.setScreen(new LayersScreen(this)))
                 .bounds(width - SETTINGS_WIDTH * 2 - 10, 4, SETTINGS_WIDTH, 20).build());
+        sliceButton = addRenderableWidget(Button.builder(MapSlices.label(slice), button -> showSlice(
+                slice.surface() ? nextBand(0) : MapSlice.SURFACE))
+                .bounds(6, 4, SLICE_WIDTH, 20).build());
     }
 
     private MapProjection projection() {
@@ -76,10 +105,11 @@ public final class WorldMapScreen extends Screen {
         }
         state.track(player.getX(), player.getZ());
         MapProjection projection = projection();
-        ExplorationRequests.view(this, player.level().dimension(), projection.regions());
+        ExplorationKey key = new ExplorationKey(player.level().dimension(), slice);
+        ExplorationRequests.view(this, key, projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, player.level().dimension(), projection, MapViewKind.WORLD_MAP);
+        MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
             WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection,
                     CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get());
@@ -174,6 +204,9 @@ public final class WorldMapScreen extends Screen {
             case GLFW.GLFW_KEY_RIGHT -> state.drag(-step, 0);
             case GLFW.GLFW_KEY_UP -> state.drag(0, step);
             case GLFW.GLFW_KEY_DOWN -> state.drag(0, -step);
+            case GLFW.GLFW_KEY_PAGE_UP -> showSlice(nextBand(1));
+            case GLFW.GLFW_KEY_PAGE_DOWN -> showSlice(nextBand(-1));
+            case GLFW.GLFW_KEY_HOME -> showSlice(MapSlice.SURFACE);
             case GLFW.GLFW_KEY_SPACE -> {
                 if (minecraft != null && minecraft.player != null) {
                     state.center(minecraft.player.getX(), minecraft.player.getZ());
@@ -190,10 +223,10 @@ public final class WorldMapScreen extends Screen {
         return true;
     }
 
-    /** The Y of the top block of a column, from the exploration data, or the Y of the player. */
+    /** The Y of the top block of a column in the slice of the map, from the exploration data, or the Y of the player. */
     private int surface(ResourceKey<Level> dimension, int blockX, int blockZ) {
         int fallback = minecraft == null || minecraft.player == null ? 64 : minecraft.player.getBlockY();
-        return ClientExploration.get().region(dimension, RegionPos.ofBlock(blockX, blockZ))
+        return ClientExploration.get().region(new ExplorationKey(dimension, slice), RegionPos.ofBlock(blockX, blockZ))
                 .filter(region -> region.sampled(blockX >> 4, blockZ >> 4) != MapRegion.NEVER)
                 .map(region -> region.height(blockX, blockZ) + 1).orElse(fallback);
     }

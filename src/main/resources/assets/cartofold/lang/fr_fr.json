@@ -15,7 +15,7 @@
   "key.cartofold.open_map": "Ouvrir la carte du monde",
   "cartofold.worldmap.title": "Carte du monde",
   "cartofold.worldmap.coordinates": "X %s, Z %s",
-  "cartofold.worldmap.hint": "Glisser : déplacer · Molette : zoomer · Clic droit : point de passage · Espace : centrer",
+  "cartofold.worldmap.hint": "Glisser : déplacer · Molette : zoomer · Clic droit : point de passage · Espace : centrer · Page haut/bas : grottes",
   "key.cartofold.add_waypoint": "Ajouter un point de passage",
   "cartofold.waypoint": "Point de passage",
   "cartofold.waypoint.death": "Mort",
@@ -68,5 +68,10 @@
   "cartofold.paper.waypoint.removed": "Point de passage retiré de la carte : %s",
   "item.cartofold.empty_survey_map": "Carte d'arpentage vierge",
   "item.cartofold.survey_map": "Carte d'arpentage",
-  "item.cartofold.survey_map.numbered": "Carte d'arpentage n°%s"
+  "item.cartofold.survey_map.numbered": "Carte d'arpentage n°%s",
+  "cartofold.slice.surface": "Surface",
+  "cartofold.slice.caves": "Grottes : Y %s à %s",
+  "cartofold.minimap.caves": "%s (grottes)",
+  "cartofold.configuration.minimap.caves": "Grottes",
+  "cartofold.configuration.minimap.caves.tooltip": "Dans une grotte, la mini-carte montre les grottes à la hauteur du joueur. La carte du monde s'ouvre aussi sur les grottes."
 }

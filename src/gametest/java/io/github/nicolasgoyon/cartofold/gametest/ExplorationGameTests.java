@@ -212,36 +212,40 @@ public final class ExplorationGameTests {
     }
 
     /**
-     * A player under a roof of rock explores the band of caves of its height: the band gets the floor under the
+     * A player in a closed room of rock explores the band of caves of its height: the band gets the floor under the
      * player, under the rock.
      */
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void playerInACaveExploresItsBand(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        BlockPos floor = new BlockPos(1, 1, 1);
-        for (int y = 2; y < 8; y++) {
-            helper.setBlock(floor.atY(y), Blocks.AIR);
-        }
-        helper.setBlock(floor, Blocks.MOSS_BLOCK);
+        BlockPos floor = new BlockPos(2, 1, 2);
         BlockPos ground = helper.absolutePos(floor);
-        // The rock of the roof goes up to the top of the band of the player.
         int top = MapSlice.caveAt(ground.getY() + 1).maxY() + 1;
-        for (int y = ground.getY() + 8; y <= top; y++) {
-            level.setBlockAndUpdate(new BlockPos(ground.getX(), y, ground.getZ()), Blocks.STONE.defaultBlockState());
+        // A room of 1 x 3 x 1 blocks of air in rock, from the floor up to the top of the band of the player.
+        for (int y = ground.getY(); y <= top; y++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    level.setBlockAndUpdate(ground.offset(dx, y - ground.getY(), dz), Blocks.STONE.defaultBlockState());
+                }
+            }
+        }
+        level.setBlockAndUpdate(ground, Blocks.MOSS_BLOCK.defaultBlockState());
+        for (int y = 1; y <= 3; y++) {
+            level.setBlockAndUpdate(ground.above(y), Blocks.AIR.defaultBlockState());
         }
         ExplorationService service = ExplorationService.get().orElseThrow();
         ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_cave"));
         player.setPos(ground.getX() + 0.5, ground.getY() + 1, ground.getZ() + 0.5);
-        helper.assertTrue(ExplorationService.underground(player), "The player is under the roof");
         ExplorationKey cave = new ExplorationKey(level.dimension(), MapSlice.caveAt(player.getBlockY()));
         RegionPos pos = RegionPos.ofBlock(ground.getX(), ground.getZ());
 
-        service.explore(player);
-        service.requestSample(cave, new ChunkPos(ground));
-
-        helper.assertTrue(service.mask(cave, player.getUUID(), pos, level.getGameTime())
-                .isExplored(ground.getX(), ground.getZ()), "The player explores the column in its band");
         helper.succeedWhen(() -> {
+            // The light engine needs some ticks for the light of the room.
+            helper.assertTrue(ExplorationService.underground(player), "The player is in a cave");
+            service.explore(player);
+            service.requestSample(cave, new ChunkPos(ground));
+            helper.assertTrue(service.mask(cave, player.getUUID(), pos, level.getGameTime())
+                    .isExplored(ground.getX(), ground.getZ()), "The player explores the column in its band");
             MapRegion region = service.region(cave, pos, level.getGameTime());
             helper.assertTrue(region.sampled(ground.getX() >> 4, ground.getZ() >> 4) != MapRegion.NEVER,
                     "The chunk of the band must get a sample");
