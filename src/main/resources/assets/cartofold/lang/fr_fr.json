@@ -50,5 +50,12 @@
   "cartofold.configuration.worldmap.waypoints.tooltip": "Afficher les points de passage sur la carte du monde.",
   "cartofold.configuration.worldmap.waypoint_names": "Afficher les noms des points de passage",
   "cartofold.configuration.worldmap.waypoint_names.tooltip": "Afficher les noms des points de passage sur la carte du monde.",
-  "cartofold.worldmap.settings": "Paramètres"
+  "cartofold.worldmap.settings": "Paramètres",
+  "cartofold.worldmap.layers": "Calques",
+  "cartofold.layers.title": "Calques des cartes",
+  "cartofold.layers.none": "Aucun mod n'ajoute de calque.",
+  "cartofold.configuration.layers": "Calques",
+  "cartofold.configuration.layers.tooltip": "Les calques des autres mods. Le bouton « Calques » de la carte du monde les affiche et les masque aussi.",
+  "cartofold.configuration.layers.hidden": "Calques masqués",
+  "cartofold.configuration.layers.hidden.tooltip": "Les identifiants des calques que les vues n'affichent pas."
 }

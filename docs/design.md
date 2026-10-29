@@ -43,8 +43,10 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 ## Layer API
 
 - A layer draws on all the views: fills and borders of chunks (for example territories), lines (for example routes), markers with an icon, a name, a tooltip and a click.
-- Each layer has an order and a visibility for each kind of view (minimap, map of the world, paper maps, frames). The player can hide a layer in the settings.
-- A mod of the server gives the data of its layer to the clients with a payload of Cartofold. The client keeps the data of the layers of each dimension.
+- Each layer has an order and a visibility for each kind of view (minimap, map of the world, paper maps, frames). The player can hide a layer with the "Layers" button of the map of the world. A layer can show its parts only on the explored chunks.
+- A mod of the server gives the content of its layer to the clients with `CartofoldLayers`: for all the players (the players that join later also get it), or for one player. A new content replaces the old content. The client keeps the layers until it leaves the world.
+- A click on a clickable marker posts a `MarkerClickEvent` on the server, only for a marker that the server sent to this player.
+- A mod of the client can also draw a layer itself, with `CartofoldClientLayers` and a `MapLayerRenderer`.
 - A **map frame** is a widget for the screens of the other mods: a map view with a selection of layers, a center and a scale. For example the journal and the admin screen of Folkhold.
 - The API is in its own package, with Javadoc. The jar is in GitHub Packages.
 

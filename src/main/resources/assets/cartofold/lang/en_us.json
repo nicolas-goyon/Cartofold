@@ -50,5 +50,12 @@
   "cartofold.configuration.worldmap.waypoints.tooltip": "Show the waypoints on the map of the world.",
   "cartofold.configuration.worldmap.waypoint_names": "Show the names of the waypoints",
   "cartofold.configuration.worldmap.waypoint_names.tooltip": "Show the names of the waypoints on the map of the world.",
-  "cartofold.worldmap.settings": "Settings"
+  "cartofold.worldmap.settings": "Settings",
+  "cartofold.worldmap.layers": "Layers",
+  "cartofold.layers.title": "Layers of the maps",
+  "cartofold.layers.none": "No mod adds a layer.",
+  "cartofold.configuration.layers": "Layers",
+  "cartofold.configuration.layers.tooltip": "The layers of the other mods. The \"Layers\" button of the map of the world also shows and hides them.",
+  "cartofold.configuration.layers.hidden": "Hidden layers",
+  "cartofold.configuration.layers.hidden.tooltip": "The identifiers of the layers that the views do not show."
 }

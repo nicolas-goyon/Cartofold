@@ -3,6 +3,7 @@ package io.github.nicolasgoyon.cartofold.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import net.minecraft.client.DeltaTracker;
@@ -67,7 +68,7 @@ public final class Minimap {
         }
         graphics.fill(x, y, x + size, y + size, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, minecraft.level.dimension(), projection);
+        MapView.render(graphics, minecraft.level.dimension(), projection, MapViewKind.MINIMAP);
         graphics.flush();
         if (CartofoldClientConfig.MINIMAP_WAYPOINTS.get()) {
             WaypointMarkers.renderMinimap(graphics, minecraft.level.dimension(), projection, round);

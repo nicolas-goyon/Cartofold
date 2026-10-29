@@ -1,8 +1,10 @@
 package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.client.ClientExploration;
+import io.github.nicolasgoyon.cartofold.client.ClientLayers;
 import io.github.nicolasgoyon.cartofold.client.ClientWaypoints;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
+import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -28,5 +30,10 @@ public final class CartofoldNetwork {
                 WaypointService::onAction);
         registrar.playToClient(WaypointsPayload.TYPE, WaypointsPayload.STREAM_CODEC,
                 (payload, context) -> ClientWaypoints.get().set(payload.waypoints()));
+        registrar.playToClient(LayerPayload.TYPE, LayerPayload.STREAM_CODEC,
+                (payload, context) -> ClientLayers.get().set(payload.content()));
+        registrar.playToClient(LayerRemovePayload.TYPE, LayerRemovePayload.STREAM_CODEC,
+                (payload, context) -> ClientLayers.get().remove(payload.layer()));
+        registrar.playToServer(MarkerClickPayload.TYPE, MarkerClickPayload.STREAM_CODEC, LayerService::onMarkerClick);
     }
 }

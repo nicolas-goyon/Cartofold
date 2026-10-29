@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gui.GuiGraphics;
@@ -67,16 +68,47 @@ public final class MapShapes {
         buffer.addVertex(matrix, half, -half, 0).setColor(color);
     }
 
+    /** Adds a quad of four points (in order around the quad) to a buffer of triangles. */
+    static void quad(BufferBuilder buffer, Matrix4f matrix, double[] a, double[] b, double[] c, double[] d,
+            int color) {
+        buffer.addVertex(matrix, (float) a[0], (float) a[1], 0).setColor(color);
+        buffer.addVertex(matrix, (float) b[0], (float) b[1], 0).setColor(color);
+        buffer.addVertex(matrix, (float) c[0], (float) c[1], 0).setColor(color);
+        buffer.addVertex(matrix, (float) a[0], (float) a[1], 0).setColor(color);
+        buffer.addVertex(matrix, (float) c[0], (float) c[1], 0).setColor(color);
+        buffer.addVertex(matrix, (float) d[0], (float) d[1], 0).setColor(color);
+    }
+
+    /** Adds a line with a width between two points to a buffer of triangles. */
+    static void line(BufferBuilder buffer, Matrix4f matrix, double[] from, double[] to, float width, int color) {
+        double dx = to[0] - from[0];
+        double dy = to[1] - from[1];
+        double length = Math.hypot(dx, dy);
+        if (length == 0) {
+            return;
+        }
+        double nx = -dy / length * width / 2;
+        double ny = dx / length * width / 2;
+        quad(buffer, matrix, new double[] {from[0] + nx, from[1] + ny}, new double[] {to[0] + nx, to[1] + ny},
+                new double[] {to[0] - nx, to[1] - ny}, new double[] {from[0] - nx, from[1] - ny}, color);
+    }
+
+    /** A new buffer of colored vertices. */
     static BufferBuilder begin(VertexFormat.Mode mode) {
         return Tesselator.getInstance().begin(mode, DefaultVertexFormat.POSITION_COLOR);
     }
 
+    /** Draws a buffer of colored vertices, if it has vertices. */
     static void draw(BufferBuilder buffer) {
+        MeshData mesh = buffer.build();
+        if (mesh == null) {
+            return;
+        }
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         RenderSystem.disableCull();
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
+        BufferUploader.drawWithShader(mesh);
         RenderSystem.enableCull();
     }
 }

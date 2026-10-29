@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -30,6 +31,7 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.BooleanValue MINIMAP_WAYPOINTS;
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINTS;
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINT_NAMES;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> HIDDEN_LAYERS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -58,6 +60,11 @@ public final class CartofoldClientConfig {
                 .translation("cartofold.configuration.worldmap.waypoints").define("waypoints", true);
         WORLD_MAP_WAYPOINT_NAMES = builder.comment("Show the names of the waypoints on the map of the world.")
                 .translation("cartofold.configuration.worldmap.waypoint_names").define("waypointNames", true);
+        builder.pop();
+        builder.translation("cartofold.configuration.layers").push("layers");
+        HIDDEN_LAYERS = builder.comment("The identifiers of the layers that the views do not show.")
+                .translation("cartofold.configuration.layers.hidden")
+                .defineListAllowEmpty("hidden", List.of(), () -> "", value -> value instanceof String);
         builder.pop();
         SPEC = builder.build();
     }

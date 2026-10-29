@@ -3,6 +3,7 @@ package io.github.nicolasgoyon.cartofold.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.tile.TileImage;
@@ -16,20 +17,23 @@ import net.minecraft.world.level.Level;
 
 /**
  * Draws the map of a dimension in the rectangle of a projection. The minimap, the map of the world and the map frames
- * use this view. The view draws only the explored chunks: the other pixels keep what is under the view.
+ * use this view. The view draws only the explored chunks: the other pixels keep what is under the view. The layers
+ * draw above the chunks (see {@link LayerRenderer}).
  */
 public final class MapView {
     private MapView() {
     }
 
     /**
-     * Draws the tiles of a dimension in the rectangle of a projection.
+     * Draws the tiles of a dimension in the rectangle of a projection, then the visible layers.
      *
      * @param graphics   the graphics of the screen
      * @param dimension  the dimension
      * @param projection the projection of the view
+     * @param kind       the kind of the view, for the visibility of the layers
      */
-    public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection) {
+    public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
+            MapViewKind kind) {
         int lod = projection.lod(Minecraft.getInstance().getWindow().getGuiScale());
         int size = TileImage.size(lod);
         graphics.enableScissor((int) Math.floor(projection.x()), (int) Math.floor(projection.y()),
@@ -54,6 +58,9 @@ public final class MapView {
             pose.popPose();
         }
         pose.popPose();
+        graphics.flush();
+        LayerRenderer.render(graphics, dimension, projection, kind);
+        graphics.flush();
         RenderSystem.disableBlend();
         graphics.disableScissor();
     }

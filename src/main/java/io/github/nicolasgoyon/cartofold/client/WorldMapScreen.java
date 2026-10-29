@@ -1,8 +1,10 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
+import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
+import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
@@ -20,12 +22,14 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /**
  * The map of the explored world. The mouse moves the map, the wheel changes the zoom, the arrow keys move the map and
  * the space key puts the player at the center. The right button of the mouse adds a waypoint, or changes the waypoint
- * under the mouse.
+ * under the mouse. The left button on a marker of a layer sends the click to the server, and the "Layers" button shows
+ * and hides the layers.
  */
 public final class WorldMapScreen extends Screen {
     private static final int BACKGROUND = 0xFF101010;
@@ -55,6 +59,9 @@ public final class WorldMapScreen extends Screen {
                         minecraft.setScreen(new ConfigurationScreen(container, this)));
             }
         }).bounds(width - SETTINGS_WIDTH - 6, 4, SETTINGS_WIDTH, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("cartofold.worldmap.layers"),
+                button -> minecraft.setScreen(new LayersScreen(this)))
+                .bounds(width - SETTINGS_WIDTH * 2 - 10, 4, SETTINGS_WIDTH, 20).build());
     }
 
     private MapProjection projection() {
@@ -73,7 +80,7 @@ public final class WorldMapScreen extends Screen {
         ExplorationRequests.view(player.level().dimension(), projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, player.level().dimension(), projection);
+        MapView.render(graphics, player.level().dimension(), projection, MapViewKind.WORLD_MAP);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
             WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection,
                     CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get());
@@ -89,6 +96,9 @@ public final class WorldMapScreen extends Screen {
         Component hint = Component.translatable("cartofold.worldmap.hint");
         graphics.drawString(font, hint, width - font.width(hint) - 6, height - font.lineHeight - 4, HINT);
         super.render(graphics, mouseX, mouseY, partialTick);
+        LayerRenderer.markerAt(player.level().dimension(), projection, MapViewKind.WORLD_MAP, mouseX, mouseY)
+                .flatMap(hit -> hit.marker().tooltip())
+                .ifPresent(tooltip -> graphics.renderTooltip(font, tooltip, mouseX, mouseY));
     }
 
     @Override
@@ -102,6 +112,16 @@ public final class WorldMapScreen extends Screen {
             return true;
         }
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            if (minecraft != null && minecraft.player != null) {
+                Optional<LayerRenderer.Hit> hit = LayerRenderer.markerAt(minecraft.player.level().dimension(),
+                        projection(), MapViewKind.WORLD_MAP, mouseX, mouseY).filter(found -> found.marker()
+                                .clickable());
+                if (hit.isPresent()) {
+                    PacketDistributor.sendToServer(new MarkerClickPayload(hit.get().layer(), hit.get().marker()
+                            .id()));
+                    return true;
+                }
+            }
             dragging = true;
             return true;
         }
