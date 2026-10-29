@@ -17,8 +17,9 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Sends the survey maps to the clients. Every {@link #CHECK_TICKS} ticks, a player gets the maps in its hands and in
- * the item frames at {@link #FRAME_DISTANCE} blocks or less, when their version changed since the last send.
+ * Sends the survey maps to the clients. Every {@link #CHECK_TICKS} ticks, a player gets the maps in its inventory, in
+ * its open menu (for example the cartography table) and in the item frames at {@link #FRAME_DISTANCE} blocks or less,
+ * when their version changed since the last send.
  */
 public final class SurveyMapSync {
     /** The time between two checks of the maps of a player, in ticks. */
@@ -41,6 +42,10 @@ public final class SurveyMapSync {
         for (InteractionHand hand : InteractionHand.values()) {
             stacks.add(player.getItemInHand(hand));
         }
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            stacks.add(player.getInventory().getItem(slot));
+        }
+        player.containerMenu.slots.forEach(slot -> stacks.add(slot.getItem()));
         for (ItemFrame frame : player.serverLevel().getEntitiesOfClass(ItemFrame.class,
                 player.getBoundingBox().inflate(FRAME_DISTANCE))) {
             stacks.add(frame.getItem());

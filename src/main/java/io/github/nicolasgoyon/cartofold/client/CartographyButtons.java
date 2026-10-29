@@ -2,6 +2,7 @@ package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.paper.MapMoves;
+import io.github.nicolasgoyon.cartofold.paper.SurveyMapItem;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
@@ -65,6 +66,15 @@ public final class CartographyButtons {
                 .build();
         BUTTONS.put(direction, button);
         event.addListener(button);
+    }
+
+    /** The buttons show only with a survey map in the table: the vanilla maps keep the vanilla table. */
+    @SubscribeEvent
+    public static void onScreenRender(ScreenEvent.Render.Pre event) {
+        if (event.getScreen() instanceof CartographyTableScreen screen) {
+            boolean survey = screen.getMenu().getSlot(0).getItem().getItem() instanceof SurveyMapItem;
+            BUTTONS.values().forEach(button -> button.visible = survey);
+        }
     }
 
     /** Shows the selected direction: a yellow arrow. */

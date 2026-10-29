@@ -4,11 +4,12 @@
   "package": "io.github.nicolasgoyon.cartofold.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "CartographyTableMenuMixin",
-    "MapItemMixin",
-    "MapItemSavedDataAccessor"
+    "CartographyTableInputSlotMixin",
+    "CartographyTableMapSlotMixin",
+    "CartographyTableMenuMixin"
   ],
   "client": [
+    "client.CartographyTableScreenMixin",
     "client.ItemInHandRendererMixin"
   ],
   "injectors": {

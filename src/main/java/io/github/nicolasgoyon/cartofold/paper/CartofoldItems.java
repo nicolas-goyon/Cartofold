@@ -22,6 +22,11 @@ public final class CartofoldItems {
             COMPONENTS.register("survey_map", () -> DataComponentType.<SurveyMapId>builder()
                     .persistent(SurveyMapId.CODEC).networkSynchronized(SurveyMapId.STREAM_CODEC).build());
 
+    /** The action of the cartography table on a survey map (see {@link SurveyMapTable}). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<SurveyMapAction>> SURVEY_MAP_ACTION =
+            COMPONENTS.register("survey_map_action", () -> DataComponentType.<SurveyMapAction>builder()
+                    .persistent(SurveyMapAction.CODEC).networkSynchronized(SurveyMapAction.STREAM_CODEC).build());
+
     public static final DeferredItem<EmptySurveyMapItem> EMPTY_SURVEY_MAP =
             ITEMS.registerItem("empty_survey_map", EmptySurveyMapItem::new, new Item.Properties());
     public static final DeferredItem<SurveyMapItem> SURVEY_MAP =

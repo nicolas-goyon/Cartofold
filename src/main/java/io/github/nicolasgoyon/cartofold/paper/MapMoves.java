@@ -1,29 +1,14 @@
 package io.github.nicolasgoyon.cartofold.paper;
 
-import io.github.nicolasgoyon.cartofold.mixin.MapItemSavedDataAccessor;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.MapItem;
-import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.saveddata.maps.MapId;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-
 /**
- * The move and the update of a vanilla map in the cartography table. The game puts the center of a map on a grid: a zoomed-out map
+ * The move of a survey map in the cartography table. The game puts the center of a map on a grid: a zoomed-out map
  * is not always around the player. The move gives a new map, one step from the old map in a direction.
  *
  * <ul>
- *   <li>In the cartography table, with a map and a paper, a button selects a direction (north, south, west or east).
- *       The result is the moved map in place of the zoomed map. The same button again selects the zoom of the
- *       game.</li>
  *   <li>A step is half of the side of the map: the new map has half of the area of the old map.</li>
- *   <li>The new map has the same scale. It keeps the explored pixels of the old map in their new positions.</li>
+ *   <li>The new map has the same scale. It keeps the explored pixels of the old map in their new positions, and no
+ *       marker.</li>
  *   <li>A locked map does not move.</li>
- *   <li>The button {@link #UPDATE} gives the same map, updated at a distance when the player takes it (see
- *       {@link MapUpdates}).</li>
  * </ul>
  */
 public final class MapMoves {
@@ -40,8 +25,6 @@ public final class MapMoves {
     public static final int SIZE = 128;
     /** A step, in pixels: half of the side of a map. */
     public static final int STEP = SIZE / 2;
-    /** The key of the direction in the custom data of the result of the table. */
-    static final String KEY = "cartofold_move";
 
     private MapMoves() {
     }
@@ -57,70 +40,22 @@ public final class MapMoves {
     }
 
     /**
-     * The result of the table: a copy of the map with the direction of the move. The move happens when the player takes
-     * the result (see {@link #postProcess}).
-     *
-     * @param map       a copy of the map
-     * @param direction the direction
-     * @return the copy
-     */
-    public static ItemStack marked(ItemStack map, int direction) {
-        CompoundTag tag = map.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        tag.putInt(KEY, direction);
-        map.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        return map;
-    }
-
-    /**
-     * Moves a map that the player takes from the table: the map gets a new id, with the moved data.
-     *
-     * @param stack the map
-     * @param level the level
-     */
-    public static void postProcess(ItemStack stack, Level level) {
-        CustomData custom = stack.get(DataComponents.CUSTOM_DATA);
-        if (custom == null || !custom.contains(KEY)) {
-            return;
-        }
-        CompoundTag tag = custom.copyTag();
-        int direction = tag.getInt(KEY);
-        tag.remove(KEY);
-        if (tag.isEmpty()) {
-            stack.remove(DataComponents.CUSTOM_DATA);
-        } else {
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        }
-        MapItemSavedData data = MapItem.getSavedData(stack, level);
-        if (!(level instanceof ServerLevel server) || data == null || data.locked) {
-            return;
-        }
-        if (direction == UPDATE) {
-            MapId current = stack.get(DataComponents.MAP_ID);
-            if (current != null) {
-                MapUpdates.start(server, current, data);
-            }
-            return;
-        }
-        MapId id = level.getFreeMapId();
-        level.setMapData(id, moved(data, direction));
-        stack.set(DataComponents.MAP_ID, id);
-    }
-
-    /**
      * The data of a map, one step in a direction.
      *
      * @param data      the data of the map
      * @param direction the direction
      * @return the new data, with the explored pixels of the map in their new positions
      */
-    static MapItemSavedData moved(MapItemSavedData data, int direction) {
-        int blocks = STEP << data.scale;
-        MapItemSavedDataAccessor accessor = (MapItemSavedDataAccessor) data;
-        MapItemSavedData result = MapItemSavedDataAccessor.cartofold$create(data.centerX + dx(direction) * blocks,
-                data.centerZ + dz(direction) * blocks, data.scale, accessor.cartofold$trackingPosition(),
-                accessor.cartofold$unlimitedTracking(), false, data.dimension);
-        result.colors = shifted(data.colors, dx(direction) * STEP, dz(direction) * STEP);
-        result.setDirty();
+    public static SurveyMapData moved(SurveyMapData data, int direction) {
+        int blocks = STEP << data.scale();
+        SurveyMapData result = data.moved(data.centerX() + dx(direction) * blocks,
+                data.centerZ() + dz(direction) * blocks, data.scale());
+        byte[] shifted = shifted(data.colors(), dx(direction) * STEP, dz(direction) * STEP);
+        for (int z = 0; z < SIZE; z++) {
+            for (int x = 0; x < SIZE; x++) {
+                result.setColor(x, z, shifted[x + z * SIZE]);
+            }
+        }
         return result;
     }
 
