@@ -14,7 +14,7 @@ The mod does not depend on other mods. It is necessary on the server and on the 
 - **Minimap**: square or round, five zoom levels, the north, the arrow of the player and the coordinates. It turns with the player or keeps the north at the top.
 - **Map of the world**: move, zoom around the mouse, center on the player, the coordinates under the mouse.
 - **Waypoints of the player**: a name, a color and a position, on the minimap and on the map of the world. A death adds a waypoint.
-- **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther.
+- **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther. The cartography table zooms, copies, locks, moves and updates them. Banners, lodestones and the blocks of other mods mark them.
 - **API**: layers (areas of chunks, lines, markers with a click), map frames for the screens of other mods, and blocks that mark the paper maps.
 - **Settings**: the settings screen of the client, in English and in French.
 

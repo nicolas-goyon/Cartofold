@@ -8,14 +8,16 @@ import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
 import io.github.nicolasgoyon.cartofold.paper.CartofoldItems;
 import io.github.nicolasgoyon.cartofold.paper.CartofoldMapDecorations;
 import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
-import io.github.nicolasgoyon.cartofold.paper.PaperWaypoints;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapSync;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
 import java.util.Optional;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.saveddata.maps.MapBanner;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -53,12 +55,14 @@ public final class Cartofold {
         CartofoldItems.register(modEventBus);
         NeoForge.EVENT_BUS.addListener(MapUpdates::onServerTick);
         NeoForge.EVENT_BUS.addListener(MapUpdates::onServerStopped);
-        NeoForge.EVENT_BUS.addListener(PaperWaypoints::onRightClickBlock);
-        NeoForge.EVENT_BUS.addListener(PaperWaypoints::onPlayerTick);
         CartofoldMapDecorations.register(modEventBus);
-        PaperMapMarkers.register(new PaperMarkerSource(ResourceLocation.fromNamespaceAndPath(MOD_ID, "lodestone"),
+        PaperMapMarkers.register(PaperMarkerSource.of(ResourceLocation.fromNamespaceAndPath(MOD_ID, "lodestone"),
                 state -> state.is(Blocks.LODESTONE), CartofoldMapDecorations.WAYPOINT,
                 (level, pos) -> Optional.of(Blocks.LODESTONE.getName())));
+        PaperMapMarkers.register(new PaperMarkerSource(ResourceLocation.fromNamespaceAndPath(MOD_ID, "banner"),
+                state -> state.is(BlockTags.BANNERS), (level, pos) -> Optional.ofNullable(MapBanner.fromWorld(level,
+                        pos)).map(banner -> new PaperMarkerSource.Marker(banner.getDecoration(),
+                                banner.name().orElse(Component.empty())))));
         modEventBus.addListener(CartofoldNetwork::register);
     }
 }
