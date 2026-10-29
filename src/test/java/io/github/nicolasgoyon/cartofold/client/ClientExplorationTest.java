@@ -55,4 +55,21 @@ class ClientExplorationTest {
         store.clear();
         assertTrue(store.region(OVERWORLD, pos).isEmpty());
     }
+
+    @Test
+    void storeFreesTheOldRegionsOutOfTheRequest() {
+        ClientExploration store = new ClientExploration();
+        for (int i = 0; i < ClientExploration.MAX_REGIONS + 10; i++) {
+            store.accept(new ExplorationChunksPayload(OVERWORLD, List.of(new ExplorationChunksPayload.Chunk(i * 32, 0,
+                    ChunkColumns.empty()))));
+        }
+        RegionPos oldest = RegionPos.ofChunk(0, 0);
+        RegionPos second = RegionPos.ofChunk(32, 0);
+
+        store.retain(OVERWORLD, List.of(oldest));
+
+        assertEquals(ClientExploration.MAX_REGIONS, store.size());
+        assertTrue(store.region(OVERWORLD, oldest).isPresent(), "A region of the request stays");
+        assertTrue(store.region(OVERWORLD, second).isEmpty(), "The oldest region out of the request goes out");
+    }
 }

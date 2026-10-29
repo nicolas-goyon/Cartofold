@@ -110,6 +110,7 @@ public final class ExplorationRequests {
             lastDimension = dimension;
             lastRegions = regions;
             PacketDistributor.sendToServer(new ExplorationRequestPayload(dimension, regions));
+            ClientExploration.get().retain(dimension, regions);
         }
     }
 
