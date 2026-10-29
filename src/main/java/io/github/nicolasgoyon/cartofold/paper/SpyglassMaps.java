@@ -5,14 +5,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 
 /**
- * A spyglass explores the paper maps farther (see {@link io.github.nicolasgoyon.cartofold.mixin.MapItemMixin}).
- *
- * <ul>
- *   <li>A player with a spyglass in the inventory updates the map in the hand in a radius {@link #FACTOR} times larger
- *       than the radius of the game.</li>
- *   <li>The update of a map reads only the chunks that are loaded: it never loads or generates a chunk. Thus the radius
- *       stops at the view distance of the server.</li>
- * </ul>
+ * A spyglass explores the survey maps farther (see {@link SurveyMapExploration}): a player with a spyglass in the
+ * inventory updates the map in the hand in a radius {@link #FACTOR} times larger. The update reads only the
+ * exploration data of Cartofold: it never loads or generates a chunk.
  */
 public final class SpyglassMaps {
     /** The radius of the update of a map with a spyglass, as a multiple of the radius of the game. */

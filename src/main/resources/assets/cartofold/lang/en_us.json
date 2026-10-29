@@ -65,5 +65,8 @@
   "cartofold.cartography.east": "Move the map east (with a paper). Again: zoom out",
   "cartofold.cartography.update": "Update the map from the generated land (with a paper). Again: zoom out",
   "cartofold.paper.waypoint.added": "Waypoint on the map: %s",
-  "cartofold.paper.waypoint.removed": "Waypoint removed from the map: %s"
+  "cartofold.paper.waypoint.removed": "Waypoint removed from the map: %s",
+  "item.cartofold.empty_survey_map": "Empty Survey Map",
+  "item.cartofold.survey_map": "Survey Map",
+  "item.cartofold.survey_map.numbered": "Survey Map #%s"
 }

@@ -3,7 +3,7 @@
 Cartofold is a map mod for Minecraft (NeoForge 1.21.1). It gives one map engine to all the maps of the game:
 
 - a minimap on the screen, and a map of the explored world (key M);
-- paper maps that replace the vanilla maps, with waypoints and a cartography table that moves and updates them;
+- survey maps: paper maps of their own, with the layers of the other mods, waypoints and a cartography table that moves and updates them;
 - an API for the other mods: they add layers to all the maps (for example territories, routes, markers) and show a map frame in their own screens.
 
 The mod does not depend on other mods. It is necessary on the server and on the client: the server records the exploration.
@@ -14,7 +14,7 @@ The mod does not depend on other mods. It is necessary on the server and on the 
 - **Minimap**: square or round, five zoom levels, the north, the arrow of the player and the coordinates. It turns with the player or keeps the north at the top.
 - **Map of the world**: move, zoom around the mouse, center on the player, the coordinates under the mouse.
 - **Waypoints of the player**: a name, a color and a position, on the minimap and on the map of the world. A death adds a waypoint.
-- **Paper maps**: the vanilla maps get the layers of the other mods. A spyglass in the inventory explores farther. The cartography table moves a zoomed-out map by half of its side and updates a map from the generated chunks. A lodestone (and the blocks of other mods) marks a waypoint on a map, as a banner.
+- **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther.
 - **API**: layers (areas of chunks, lines, markers with a click), map frames for the screens of other mods, and blocks that mark the paper maps.
 - **Settings**: the settings screen of the client, in English and in French.
 

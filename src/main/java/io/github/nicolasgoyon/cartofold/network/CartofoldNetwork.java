@@ -2,8 +2,8 @@ package io.github.nicolasgoyon.cartofold.network;
 
 import io.github.nicolasgoyon.cartofold.client.ClientExploration;
 import io.github.nicolasgoyon.cartofold.client.ClientLayers;
-import io.github.nicolasgoyon.cartofold.client.ClientPaperMaps;
 import io.github.nicolasgoyon.cartofold.client.ClientWaypoints;
+import io.github.nicolasgoyon.cartofold.paper.SurveyMapLookup;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
@@ -35,8 +35,8 @@ public final class CartofoldNetwork {
                 (payload, context) -> ClientLayers.get().set(payload.content()));
         registrar.playToClient(LayerRemovePayload.TYPE, LayerRemovePayload.STREAM_CODEC,
                 (payload, context) -> ClientLayers.get().remove(payload.layer()));
-        registrar.playToClient(PaperMapInfoPayload.TYPE, PaperMapInfoPayload.STREAM_CODEC,
-                (payload, context) -> ClientPaperMaps.accept(payload));
+        registrar.playToClient(SurveyMapPayload.TYPE, SurveyMapPayload.STREAM_CODEC,
+                (payload, context) -> SurveyMapLookup.accept(payload));
         registrar.playToServer(MarkerClickPayload.TYPE, MarkerClickPayload.STREAM_CODEC, LayerService::onMarkerClick);
     }
 }

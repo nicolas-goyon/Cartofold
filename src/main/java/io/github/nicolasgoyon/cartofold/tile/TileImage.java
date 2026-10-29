@@ -83,7 +83,7 @@ public final class TileImage {
     }
 
     /** The shade of water, as on the vanilla maps. */
-    static MapColor.Brightness waterBrightness(int depth, int checker) {
+    public static MapColor.Brightness waterBrightness(int depth, int checker) {
         double value = depth * 0.1 + checker * 0.2;
         if (value < 0.5) {
             return MapColor.Brightness.HIGH;
@@ -92,7 +92,7 @@ public final class TileImage {
     }
 
     /** The shade of land from the difference of height with the north, as on the vanilla maps. */
-    static MapColor.Brightness landBrightness(int difference, int cell, int checker) {
+    public static MapColor.Brightness landBrightness(int difference, int cell, int checker) {
         double value = difference * 4.0 / (cell + 4) + (checker - 0.5) * 0.4;
         if (value > 0.6) {
             return MapColor.Brightness.HIGH;

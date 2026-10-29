@@ -6,11 +6,10 @@
   "mixins": [
     "CartographyTableMenuMixin",
     "MapItemMixin",
-    "MapItemSavedDataAccessor",
-    "MapItemSavedDataMixin"
+    "MapItemSavedDataAccessor"
   ],
   "client": [
-    "client.MapRendererMixin"
+    "client.ItemInHandRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

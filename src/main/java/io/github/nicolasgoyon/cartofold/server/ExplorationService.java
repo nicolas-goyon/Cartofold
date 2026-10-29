@@ -220,6 +220,16 @@ public final class ExplorationService {
         }
     }
 
+    /**
+     * Puts a loaded chunk in the queue of the samples, for example a chunk of a survey map in the hand of a player.
+     *
+     * @param level the dimension of the chunk
+     * @param chunk the chunk
+     */
+    public void requestSample(ResourceKey<Level> level, ChunkPos chunk) {
+        data(level).queue.add(chunk);
+    }
+
     /** Reads the next chunks of the queues, then frees the regions and the masks with no recent use. */
     void tick() {
         int budget = SAMPLES_PER_TICK;
