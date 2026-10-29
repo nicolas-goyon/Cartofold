@@ -34,3 +34,4 @@
 - The version starts from the last release tag (`vX.Y.Z`). The commits after the tag apply their bump in order, the oldest first. A commit with no marker keeps the version. A commit of Dependabot counts as `[patch]`.
 - `python3 scripts/version.py version --rev <commit>` gives the version of a commit.
 - The workflow **Build** gives each build a version: the version of the commit with `-dev.<commit>` for `develop`, and the version after the merge with `-pr.<number>.<commit>` for a pull request.
+- The workflow **Release** runs on each push on `main`. It tags the commit of `develop` with `vX.Y.Z`, creates a GitHub Release with the jar and the release notes, then publishes the jar to GitHub Packages. If the tag exists, it makes no release. To make a release, open a pull request from `develop` to `main` and merge it with a merge commit (not a squash), so that `develop` contains the tag.
