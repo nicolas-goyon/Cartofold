@@ -57,7 +57,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - The vanilla packets do not give the center and the dimension of a map to the client. The server sends them once for each map and each player, with the first vanilla packet of the map.
 - Cartofold draws the layers in its own texture, out of the textures of the vanilla maps: ImmediatelyFast and Moonlight do not change it.
 - **Waypoints**: a player marks a place on a map from a block, as with a banner. Another mod adds its own blocks with the API (for example the heart of a village of Folkhold).
-- **Spyglass**: a player with a spyglass in the inventory explores the map in the hand farther. The update reads only the loaded chunks.
+- **Spyglass**: a player with a spyglass in the inventory explores the map in the hand in a radius 3 times larger than the radius of the game. The update of a map reads only the loaded chunks: it never loads or generates a chunk, also with no spyglass.
 - **Cartography table**: zoom, copy and lock, as the vanilla table. It also moves a zoomed-out map by half of its side in a direction (the game puts the center of a map on a fixed grid), and updates a map at a distance from the chunks that are already generated, with a cost and a limit of chunks.
 
 ## Compatibility

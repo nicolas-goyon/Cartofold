@@ -4,6 +4,7 @@
   "package": "io.github.nicolasgoyon.cartofold.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "MapItemMixin",
     "MapItemSavedDataMixin"
   ],
   "client": [
