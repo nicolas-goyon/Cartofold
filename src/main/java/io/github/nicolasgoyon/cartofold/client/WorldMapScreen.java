@@ -125,9 +125,10 @@ public final class WorldMapScreen extends Screen {
         Component hint = Component.translatable("cartofold.worldmap.hint");
         graphics.drawString(font, hint, width - font.width(hint) - 6, height - font.lineHeight - 4, HINT);
         super.render(graphics, mouseX, mouseY, partialTick);
-        LayerRenderer.markerAt(player.level().dimension(), projection, MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY)
-                .flatMap(hit -> hit.marker().tooltip())
-                .ifPresent(tooltip -> graphics.renderTooltip(font, tooltip, mouseX, mouseY));
+        if (getChildAt(mouseX, mouseY).isEmpty()) {
+            graphics.renderComponentTooltip(font, LayerRenderer.tooltipAt(player.level().dimension(), projection,
+                    MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY), mouseX, mouseY);
+        }
     }
 
     @Override

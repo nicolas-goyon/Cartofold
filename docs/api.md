@@ -76,10 +76,18 @@ CartofoldLayers.setForAll(content);
 CartofoldLayers.set(player, content);
 ```
 
+An area can have a tooltip of one or more lines. The map of the world and the map frames show it when the mouse is above a chunk of the area. When a marker with a tooltip is also under the mouse, the map shows the tooltip of the marker.
+
+```java
+ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4000FF00, 0xFF00FF00,
+        Component.literal("North village"),
+        List.of(Component.literal("North village"), Component.literal("Red faction").withColor(0xFF4040)));
+```
+
 - `LayerInfo.order`: a layer with a higher order draws above the layers with a lower order. The waypoints of the player are above all the layers.
 - `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`).
 - `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored.
-- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most, and a line has 4096 points at most.
+- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most and 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.
 
 ### Clicks on markers

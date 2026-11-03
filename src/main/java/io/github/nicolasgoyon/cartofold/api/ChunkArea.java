@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -22,6 +23,11 @@ import net.minecraft.world.level.Level;
 public final class ChunkArea {
     /** The largest number of chunks of an area. */
     public static final int MAX_CHUNKS = 1 << 16;
+    /** The largest number of lines of a tooltip. */
+    public static final int MAX_TOOLTIP_LINES = 16;
+
+    private static final StreamCodec<RegistryFriendlyByteBuf, List<Component>> TOOLTIP_CODEC =
+            ComponentSerialization.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_TOOLTIP_LINES));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ChunkArea> STREAM_CODEC = StreamCodec.of(
             (buf, area) -> {
@@ -32,6 +38,7 @@ public final class ChunkArea {
                 buf.writeInt(area.fillColor);
                 buf.writeInt(area.borderColor);
                 ComponentSerialization.STREAM_CODEC.encode(buf, area.name);
+                TOOLTIP_CODEC.encode(buf, area.tooltip);
             },
             buf -> {
                 String id = buf.readUtf();
@@ -47,7 +54,8 @@ public final class ChunkArea {
                 int fill = buf.readInt();
                 int border = buf.readInt();
                 Component name = ComponentSerialization.STREAM_CODEC.decode(buf);
-                return new ChunkArea(id, dimension, chunks, fill, border, name);
+                List<Component> tooltip = TOOLTIP_CODEC.decode(buf);
+                return new ChunkArea(id, dimension, chunks, fill, border, name, tooltip);
             });
 
     private final String id;
@@ -56,11 +64,15 @@ public final class ChunkArea {
     private final int fillColor;
     private final int borderColor;
     private final Component name;
+    private final List<Component> tooltip;
 
     private ChunkArea(String id, ResourceKey<Level> dimension, LongOpenHashSet chunks, int fillColor,
-            int borderColor, Component name) {
+            int borderColor, Component name, List<Component> tooltip) {
         if (chunks.size() > MAX_CHUNKS) {
             throw new IllegalArgumentException("An area has " + MAX_CHUNKS + " chunks at most");
+        }
+        if (tooltip.size() > MAX_TOOLTIP_LINES) {
+            throw new IllegalArgumentException("A tooltip has " + MAX_TOOLTIP_LINES + " lines at most");
         }
         this.id = id;
         this.dimension = dimension;
@@ -68,10 +80,11 @@ public final class ChunkArea {
         this.fillColor = fillColor;
         this.borderColor = borderColor;
         this.name = name;
+        this.tooltip = List.copyOf(tooltip);
     }
 
     /**
-     * Makes an area.
+     * Makes an area with no tooltip.
      *
      * @param id          the identifier of the area in its layer
      * @param dimension   the dimension of the chunks
@@ -82,9 +95,25 @@ public final class ChunkArea {
      */
     public static ChunkArea of(String id, ResourceKey<Level> dimension, Collection<ChunkPos> chunks, int fillColor,
             int borderColor, Component name) {
+        return of(id, dimension, chunks, fillColor, borderColor, name, List.of());
+    }
+
+    /**
+     * Makes an area with a tooltip.
+     *
+     * @param id          the identifier of the area in its layer
+     * @param dimension   the dimension of the chunks
+     * @param chunks      the chunks
+     * @param fillColor   the color of the fill, in ARGB (an alpha of 0 for no fill)
+     * @param borderColor the color of the border, in ARGB (an alpha of 0 for no border)
+     * @param name        the name of the area
+     * @param tooltip     the lines when the mouse is above a chunk of the area, {@link #MAX_TOOLTIP_LINES} at most
+     */
+    public static ChunkArea of(String id, ResourceKey<Level> dimension, Collection<ChunkPos> chunks, int fillColor,
+            int borderColor, Component name, List<Component> tooltip) {
         LongOpenHashSet packed = new LongOpenHashSet(chunks.size());
         chunks.forEach(chunk -> packed.add(chunk.toLong()));
-        return new ChunkArea(id, dimension, packed, fillColor, borderColor, name);
+        return new ChunkArea(id, dimension, packed, fillColor, borderColor, name, tooltip);
     }
 
     public String id() {
@@ -117,15 +146,20 @@ public final class ChunkArea {
         return name;
     }
 
+    /** The lines when the mouse is above a chunk of the area. With no line, the area has no tooltip. */
+    public List<Component> tooltip() {
+        return tooltip;
+    }
+
     @Override
     public boolean equals(Object other) {
         return other instanceof ChunkArea area && id.equals(area.id) && dimension.equals(area.dimension)
                 && chunks.equals(area.chunks) && fillColor == area.fillColor && borderColor == area.borderColor
-                && name.equals(area.name);
+                && name.equals(area.name) && tooltip.equals(area.tooltip);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, dimension, chunks, fillColor, borderColor, name);
+        return Objects.hash(id, dimension, chunks, fillColor, borderColor, name, tooltip);
     }
 }

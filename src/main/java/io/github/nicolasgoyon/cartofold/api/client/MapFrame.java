@@ -245,8 +245,8 @@ public class MapFrame extends AbstractWidget {
         }
         graphics.disableScissor();
         if (isHovered()) {
-            markerAt(mouseX, mouseY).flatMap(hit -> hit.marker().tooltip()).ifPresent(tooltip -> graphics
-                    .renderTooltip(Minecraft.getInstance().font, tooltip, mouseX, mouseY));
+            graphics.renderComponentTooltip(Minecraft.getInstance().font, LayerRenderer.tooltipAt(shown, projection,
+                    MapViewKind.FRAME, layers, mouseX, mouseY), mouseX, mouseY);
         }
     }
 

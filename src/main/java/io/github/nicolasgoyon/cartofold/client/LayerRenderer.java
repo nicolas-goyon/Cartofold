@@ -25,13 +25,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
 
-/** Draws the layers in the map views, and finds the marker under the mouse. */
+/** Draws the layers in the map views, and finds the marker and the area under the mouse. */
 public final class LayerRenderer {
     /** The width of the border of an area, in units of the screen. */
     private static final float BORDER_WIDTH = 1.5f;
@@ -215,5 +216,47 @@ public final class LayerRenderer {
             }
         }
         return Optional.ofNullable(best);
+    }
+
+    /**
+     * The visible area with a tooltip of the layers of a dimension at a point of the screen, or empty. The area of the
+     * highest layer comes first. In a layer, the last area comes first.
+     */
+    public static Optional<ChunkArea> areaAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        double[] block = projection.toBlock(screenX, screenY);
+        int chunkX = (int) Math.floor(block[0]) >> 4;
+        int chunkZ = (int) Math.floor(block[1]) >> 4;
+        Explored explored = new Explored(dimension);
+        List<LayerContent> contents = ClientLayers.get().contents();
+        for (LayerContent content : contents.reversed()) {
+            if (!visible(content.info(), kind) || !layers.test(content.info().id())
+                    || (content.info().onlyExplored() && !explored.chunk(chunkX, chunkZ))) {
+                continue;
+            }
+            for (ChunkArea area : content.areas().reversed()) {
+                if (!area.tooltip().isEmpty() && area.dimension().equals(dimension)
+                        && area.contains(chunkX, chunkZ)) {
+                    return Optional.of(area);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The lines of the tooltip at a point of the screen: the tooltip of the marker, or the tooltip of the area.
+     *
+     * @return the lines, or an empty list
+     */
+    public static List<Component> tooltipAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        Optional<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
+                .flatMap(hit -> hit.marker().tooltip());
+        if (marker.isPresent()) {
+            return List.of(marker.get());
+        }
+        return areaAt(dimension, projection, kind, layers, screenX, screenY).map(ChunkArea::tooltip)
+                .orElse(List.of());
     }
 }
