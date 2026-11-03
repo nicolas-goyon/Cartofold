@@ -73,5 +73,11 @@
   "cartofold.slice.caves": "Caves: Y %s to %s",
   "cartofold.minimap.caves": "%s (caves)",
   "cartofold.configuration.minimap.caves": "Caves",
-  "cartofold.configuration.minimap.caves.tooltip": "In a cave, the minimap shows the caves at the height of the player. The map of the world opens on the caves too."
+  "cartofold.configuration.minimap.caves.tooltip": "In a cave, the minimap shows the caves at the height of the player. The map of the world opens on the caves too.",
+  "cartofold.layer.banners": "Banners",
+  "cartofold.configuration.layers.banner_views": "Views of the banners",
+  "cartofold.configuration.layers.banner_views.tooltip": "The views that show the banners that the player marked on a map.",
+  "cartofold.configuration.layers.banner_views.minimap": "Minimap",
+  "cartofold.configuration.layers.banner_views.world_map": "Map of the world",
+  "cartofold.configuration.layers.banner_views.both": "Minimap and map of the world"
 }

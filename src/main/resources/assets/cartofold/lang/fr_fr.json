@@ -73,5 +73,11 @@
   "cartofold.slice.caves": "Grottes : Y %s à %s",
   "cartofold.minimap.caves": "%s (grottes)",
   "cartofold.configuration.minimap.caves": "Grottes",
-  "cartofold.configuration.minimap.caves.tooltip": "Dans une grotte, la mini-carte montre les grottes à la hauteur du joueur. La carte du monde s'ouvre aussi sur les grottes."
+  "cartofold.configuration.minimap.caves.tooltip": "Dans une grotte, la mini-carte montre les grottes à la hauteur du joueur. La carte du monde s'ouvre aussi sur les grottes.",
+  "cartofold.layer.banners": "Bannières",
+  "cartofold.configuration.layers.banner_views": "Vues des bannières",
+  "cartofold.configuration.layers.banner_views.tooltip": "Les vues qui montrent les bannières que le joueur a marquées sur une carte.",
+  "cartofold.configuration.layers.banner_views.minimap": "Mini-carte",
+  "cartofold.configuration.layers.banner_views.world_map": "Carte du monde",
+  "cartofold.configuration.layers.banner_views.both": "Mini-carte et carte du monde"
 }
