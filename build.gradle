@@ -1,0 +1,225 @@
+// The Cartofold mod: one project, with the sources of the mod (main), the unit tests (test) and the in-game tests
+// (gametest).
+//
+//   ./gradlew build                      compiles, checks the format and the translations, runs the unit tests
+//   ./gradlew runGameTestServer          runs all the GameTests in a new world (folder run-gametest), then stops
+//   ./gradlew runServer                  dedicated server (port 25565)
+//   ./gradlew runClient                  client (needs a display)
+//   ./gradlew spotlessApply              fixes the format of the files
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.148'
+    id 'com.diffplug.spotless' version '8.10.4'
+    id 'net.ltgt.errorprone' version '5.1.1'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// The Javadoc of the API is in the Javadoc jar. The classes out of the API have no Javadoc on each member.
+tasks.named('javadoc', Javadoc) {
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+    options.encoding = 'UTF-8'
+}
+
+// GameTests: in-game tests in src/gametest. The runs load this source set with the mod. The jar and the sources jar
+// of the mod do not contain it.
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    gametestImplementation.extendsFrom implementation
+    gametestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    errorprone "com.google.errorprone:error_prone_core:${errorprone_version}"
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+}
+
+def debugPort = providers.gradleProperty('debugPort').getOrNull()
+
+neoForge {
+    version = neo_version
+
+    parchment {
+        mappingsVersion = parchment_mappings_version
+        minecraftVersion = parchment_minecraft_version
+    }
+
+    addModdingDependenciesTo(sourceSets.gametest)
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+            sourceSet(sourceSets.gametest)
+        }
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+        }
+
+        configureEach {
+            // The GameTest server has its own folder: it does not open the world of the client and the server.
+            gameDirectory = project.file(name == 'gameTestServer' ? 'run-gametest' : 'run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            logLevel = System.getenv('CI') != null ? org.slf4j.event.Level.INFO : org.slf4j.event.Level.DEBUG
+            if (debugPort != null) {
+                jvmArgument "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${debugPort}"
+            }
+        }
+    }
+
+    // JUnit tests with the game runtime: the registries and the mod are loaded, there is no server.
+    unitTest {
+        enable()
+        testedMod = mods."${mod_id}"
+    }
+}
+
+// Expands the properties in src/main/templates (for example META-INF/neoforge.mods.toml).
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_description        : mod_description,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // All the javac lints are errors. The 'this-escape' lint is off: the Minecraft widgets and textures set their
+    // state in the constructor through the methods of the super class.
+    options.compilerArgs.addAll(['-Xlint:all,-this-escape', '-Werror'])
+    options.errorprone {
+        disableWarningsInGeneratedCode = true
+        // The registry objects of Minecraft are compared by identity: this is the convention of the game code.
+        disable('ReferenceEquality')
+    }
+}
+
+// Fails when a translation key exists in one language file and not in the other one. Supported languages: en_us
+// (reference) and fr_fr.
+def langFiles = fileTree('src/main/resources/assets') { include '*/lang/*.json' }
+def requiredLanguages = ['en_us', 'fr_fr']
+
+tasks.register('checkTranslations') {
+    group = 'verification'
+    description = 'Checks that the mod has the same translation keys in all supported languages.'
+    inputs.files(langFiles)
+    def marker = layout.buildDirectory.file('checkTranslations/ok')
+    outputs.file(marker)
+
+    doLast {
+        def slurper = new groovy.json.JsonSlurper()
+        def errors = []
+        langFiles.files.groupBy { it.parentFile }.each { dir, files ->
+            def byLang = files.collectEntries { f -> [(f.name - '.json'): (slurper.parse(f) as Map).keySet()] }
+            (requiredLanguages - byLang.keySet()).each { errors << "${dir}: missing file ${it}.json" }
+            def allKeys = byLang.values().flatten() as Set
+            byLang.each { lang, keys ->
+                (allKeys - keys).sort().each { errors << "${dir}/${lang}.json: missing key '${it}'" }
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new GradleException("Translation check failed:\n  " + errors.join('\n  '))
+        }
+        def out = marker.get().asFile
+        out.parentFile.mkdirs()
+        out.text = 'ok'
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'checkTranslations', 'spotlessCheck'
+    // The build compiles the GameTests, so a compile error shows before the GameTest server runs.
+    dependsOn 'compileGametestJava'
+}
+
+// Format checks. Four spaces, imports in one group in ASCII order, static imports first. `spotlessApply` fixes the
+// files.
+spotless {
+    java {
+        target 'src/*/java/**/*.java'
+        importOrder('\\#', '')
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        leadingTabsToSpaces(4)
+        endWithNewline()
+    }
+    format('misc') {
+        target '*.gradle', '.github/workflows/*.yml', '*.md', 'docs/*.md', 'src/*/resources/**/*.json',
+                'src/*/resources/**/*.toml'
+        trimTrailingWhitespace()
+        leadingTabsToSpaces(4)
+        endWithNewline()
+    }
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId = mod_id
+            from components.java
+        }
+    }
+    repositories {
+        // GitHub Packages, for the mods that use the API of Cartofold.
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/nicolas-goyon/cartofold')
+            credentials {
+                username = providers.environmentVariable('GITHUB_ACTOR').getOrElse('')
+                password = providers.environmentVariable('GITHUB_TOKEN').getOrElse('')
+            }
+        }
+    }
+}

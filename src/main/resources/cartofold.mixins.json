@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.nicolasgoyon.cartofold.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "CartographyTableInputSlotMixin",
+    "CartographyTableMapSlotMixin",
+    "CartographyTableMenuMixin"
+  ],
+  "client": [
+    "client.CartographyTableScreenMixin",
+    "client.ItemInHandRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
