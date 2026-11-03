@@ -19,6 +19,14 @@ class ModrinthTest(unittest.TestCase):
         self.assertEqual(["neoforge"], data["loaders"])
         self.assertEqual("Cartofold 1.2.3", data["name"])
 
+    def test_dev_build_is_an_alpha_that_is_not_featured(self):
+        props = {"mod_name": "Cartofold", "minecraft_version": "1.21.1"}
+
+        data = modrinth.metadata("abc", "1.2.3-dev.abc1234", "Notes", props, "alpha")
+
+        self.assertEqual("alpha", data["version_type"])
+        self.assertFalse(data["featured"])
+
     def test_jars_keep_the_suffixes_of_the_maven(self):
         names = [path.name for path in modrinth.jars("build/libs", "cartofold", "1.2.3")]
 

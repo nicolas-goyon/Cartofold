@@ -1,3 +1,5 @@
+<img src="src/main/resources/cartofold_logo.png" alt="The logo of Cartofold: a map in the shape of a potato" width="128">
+
 # Cartofold
 
 Cartofold is a map mod for Minecraft (NeoForge 1.21.1). It gives one map engine to all the maps of the game:
@@ -35,7 +37,7 @@ The settings screen opens from the list of the mods and from the map of the worl
 
 ## API
 
-Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release puts the jar in GitHub Packages.
+Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release goes to [Modrinth](https://modrinth.com/mod/cartofold) and to GitHub Packages.
 
 ## Development
 
