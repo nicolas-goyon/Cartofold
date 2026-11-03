@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Publish a version of Cartofold to Modrinth.
+"""Publish Cartofold to Modrinth: the versions and the page of the project.
 
-The script sends the jar as the primary file, and the sources jar and the Javadoc jar as additional files. The Maven of
+    MODRINTH_PROJECT_ID=... MODRINTH_TOKEN=... python3 scripts/modrinth.py publish --version 1.2.3 --notes notes.md
+    MODRINTH_PROJECT_ID=... MODRINTH_TOKEN=... python3 scripts/modrinth.py project --body docs/modrinth.md --icon logo.png
+
+`publish` sends the jar as the primary file, and the sources jar and the Javadoc jar as additional files. The Maven of
 Modrinth then gives the three files with no token. The files keep the names of Gradle: the Maven finds the suffixes
-`-sources` and `-javadoc` in these names.
+`-sources` and `-javadoc` in these names. `--type` selects the channel: `release`, or `alpha` for the dev builds. The
+Minecraft version and the mod name come from gradle.properties. The jars come from build/libs. A version that Modrinth
+already has is not an error, so a failed release can run again. This command needs the scope VERSION_CREATE.
 
-    MODRINTH_PROJECT_ID=... MODRINTH_TOKEN=... python3 scripts/modrinth.py --version 1.2.3 --notes notes.md
-
-The Minecraft version and the mod name come from gradle.properties. The jars come from build/libs. A version that
-Modrinth already has is not an error, so a failed release can run again.
+`project` sets the short description (mod_description of gradle.properties), the long description and the icon of the
+project. This command needs the scope PROJECT_WRITE.
 """
 import argparse
 import json
@@ -19,9 +22,10 @@ import urllib.error
 import urllib.request
 import uuid
 
-API = "https://api.modrinth.com/v2/version"
+API = "https://api.modrinth.com/v2"
 USER_AGENT = "nicolas-goyon/cartofold (release workflow)"
 SUFFIXES = ("", "-sources", "-javadoc")
+TYPES = ("release", "beta", "alpha")
 
 
 def properties(path):
@@ -35,7 +39,7 @@ def properties(path):
     return values
 
 
-def metadata(project, version, notes, props):
+def metadata(project, version, notes, props, version_type="release"):
     """The JSON of a new version."""
     return {
         "project_id": project,
@@ -44,9 +48,9 @@ def metadata(project, version, notes, props):
         "changelog": notes,
         "dependencies": [],
         "game_versions": [props["minecraft_version"]],
-        "version_type": "release",
+        "version_type": version_type,
         "loaders": ["neoforge"],
-        "featured": True,
+        "featured": version_type == "release",
         "status": "listed",
         "file_parts": [f"file{index}" for index in range(len(SUFFIXES))],
         "primary_file": "file0",
@@ -74,10 +78,10 @@ def multipart(boundary, data, files):
     return bytes(body)
 
 
-def exists(project, version):
-    """True if Modrinth has this version of the project."""
-    request = urllib.request.Request(f"https://api.modrinth.com/v2/project/{project}/version/{version}",
-                                     headers={"User-Agent": USER_AGENT})
+def exists(token, project, version):
+    """True if Modrinth has this version of the project. The token also gives the versions of a draft project."""
+    request = urllib.request.Request(f"{API}/project/{project}/version/{version}",
+                                     headers={"Authorization": token, "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(request):
             return True
@@ -87,42 +91,76 @@ def exists(project, version):
         raise
 
 
-def publish(token, data, files):
+def send(request):
+    """Sends a request. The result is 0, or 1 if Modrinth refuses the request."""
+    try:
+        with urllib.request.urlopen(request):
+            return 0
+    except urllib.error.HTTPError as error:
+        print(f"Modrinth refused {request.full_url}: {error.code} {error.read().decode()}", file=sys.stderr)
+        return 1
+
+
+def publish(args, project, token):
     """Sends a new version."""
-    boundary = uuid.uuid4().hex
-    request = urllib.request.Request(API, data=multipart(boundary, data, files), method="POST", headers={
-        "Authorization": token,
-        "Content-Type": f"multipart/form-data; boundary={boundary}",
-        "User-Agent": USER_AGENT,
-    })
-    with urllib.request.urlopen(request):
-        pass
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", required=True, help="the version of the release")
-    parser.add_argument("--notes", required=True, help="the file of the release notes")
-    parser.add_argument("--libs", default="build/libs", help="the folder of the jars")
-    args = parser.parse_args()
-    project = os.environ["MODRINTH_PROJECT_ID"]
     props = properties("gradle.properties")
     files = jars(args.libs, props["mod_id"], args.version)
     missing = [str(path) for path in files if not path.is_file()]
     if missing:
         print(f"No file: {', '.join(missing)}", file=sys.stderr)
         return 1
-    if exists(project, args.version):
+    if exists(token, project, args.version):
         print(f"Modrinth has the version {args.version}: no publication.")
         return 0
     notes = pathlib.Path(args.notes).read_text(encoding="utf-8")
-    try:
-        publish(os.environ["MODRINTH_TOKEN"], metadata(project, args.version, notes, props), files)
-    except urllib.error.HTTPError as error:
-        print(f"Modrinth refused the version: {error.code} {error.read().decode()}", file=sys.stderr)
-        return 1
-    print(f"Modrinth has the new version {args.version}.")
-    return 0
+    boundary = uuid.uuid4().hex
+    data = metadata(project, args.version, notes, props, args.type)
+    request = urllib.request.Request(f"{API}/version", data=multipart(boundary, data, files), method="POST", headers={
+        "Authorization": token,
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+        "User-Agent": USER_AGENT,
+    })
+    result = send(request)
+    if result == 0:
+        print(f"Modrinth has the new version {args.version} ({args.type}).")
+    return result
+
+
+def page(args, project, token):
+    """Sets the descriptions and the icon of the project."""
+    fields = {
+        "description": properties("gradle.properties")["mod_description"],
+        "body": pathlib.Path(args.body).read_text(encoding="utf-8"),
+    }
+    result = send(urllib.request.Request(f"{API}/project/{project}", data=json.dumps(fields).encode(), method="PATCH",
+                                         headers={
+                                             "Authorization": token,
+                                             "Content-Type": "application/json",
+                                             "User-Agent": USER_AGENT,
+                                         }))
+    return result or send(urllib.request.Request(f"{API}/project/{project}/icon?ext=png",
+                                                 data=pathlib.Path(args.icon).read_bytes(), method="PATCH", headers={
+                                                     "Authorization": token,
+                                                     "Content-Type": "image/png",
+                                                     "User-Agent": USER_AGENT,
+                                                 }))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    commands = parser.add_subparsers(dest="command", required=True)
+    version = commands.add_parser("publish", help="send a new version")
+    version.add_argument("--version", required=True, help="the version")
+    version.add_argument("--notes", required=True, help="the file of the notes of the version")
+    version.add_argument("--type", choices=TYPES, default="release", help="the channel of the version")
+    version.add_argument("--libs", default="build/libs", help="the folder of the jars")
+    version.set_defaults(run=publish)
+    project_page = commands.add_parser("project", help="set the page of the project")
+    project_page.add_argument("--body", required=True, help="the file of the long description")
+    project_page.add_argument("--icon", required=True, help="the PNG file of the icon")
+    project_page.set_defaults(run=page)
+    args = parser.parse_args()
+    return args.run(args, os.environ["MODRINTH_PROJECT_ID"], os.environ["MODRINTH_TOKEN"])
 
 
 if __name__ == "__main__":
