@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.api.LayerContent;
+import io.github.nicolasgoyon.cartofold.api.MapMarker;
 import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.network.SurveyMapPayload;
 import io.github.nicolasgoyon.cartofold.paper.PaperMapGeometry;
@@ -59,6 +60,10 @@ public final class SurveyMapRenderer {
     /** A texture with no use for this number of milliseconds is freed. */
     public static final long IDLE_MILLIS = 30_000L;
     private static final int SIZE = PaperMapGeometry.SIZE;
+    /** The size of the icon of a marker of a layer: the size of an icon of a vanilla map. */
+    private static final int ICON_SIZE = 8;
+    /** The depth of the icons of the layers: above the map, and under the decorations. */
+    private static final float ICON_DEPTH = -0.015f;
     private static final Map<Integer, Texture> TEXTURES = new HashMap<>();
 
     private SurveyMapRenderer() {
@@ -105,6 +110,7 @@ public final class SurveyMapRenderer {
         consumer.addVertex(matrix, SIZE, SIZE, -0.01f).setColor(-1).setUv(1, 1).setLight(packedLight);
         consumer.addVertex(matrix, SIZE, 0, -0.01f).setColor(-1).setUv(1, 0).setLight(packedLight);
         consumer.addVertex(matrix, 0, 0, -0.01f).setColor(-1).setUv(0, 0).setLight(packedLight);
+        drawIcons(pose, buffers, map, layers, packedLight);
         int index = 0;
         for (SurveyMarker marker : map.markers()) {
             Optional<Holder.Reference<MapDecorationType>> type = decorationType(marker.type());
@@ -129,6 +135,34 @@ public final class SurveyMapRenderer {
             byte rot = (byte) (inside ? Math.round(player.getYRot() * 16 / 360.0) & 15 : 0);
             drawDecoration(pose, buffers, new MapDecoration(inside ? MapDecorationTypes.PLAYER
                     : MapDecorationTypes.PLAYER_OFF_MAP, x, z, rot, Optional.empty()), packedLight, index);
+        }
+    }
+
+    /** Draws the icons of the markers of the layers, on the explored pixels of the map. */
+    private static void drawIcons(PoseStack pose, MultiBufferSource buffers, SurveyMapPayload map,
+            List<LayerContent> layers, int packedLight) {
+        PaperMapGeometry geometry = new PaperMapGeometry(map.centerX(), map.centerZ(), map.scale());
+        Matrix4f matrix = pose.last().pose();
+        for (LayerContent layer : layers) {
+            for (MapMarker marker : layer.markers()) {
+                int x = geometry.pixelX(marker.pos().getX());
+                int z = geometry.pixelZ(marker.pos().getZ());
+                if (marker.icon().isEmpty() || !marker.dimension().equals(map.dimension()) || x < 0 || z < 0
+                        || x >= SIZE || z >= SIZE || map.colors()[x + z * SIZE] == 0) {
+                    continue;
+                }
+                int color = marker.tinted() ? 0xFF000000 | marker.color() : -1;
+                float half = ICON_SIZE / 2f;
+                VertexConsumer consumer = buffers.getBuffer(RenderType.text(marker.icon().get()));
+                consumer.addVertex(matrix, x - half, z + half, ICON_DEPTH).setColor(color).setUv(0, 1)
+                        .setLight(packedLight);
+                consumer.addVertex(matrix, x + half, z + half, ICON_DEPTH).setColor(color).setUv(1, 1)
+                        .setLight(packedLight);
+                consumer.addVertex(matrix, x + half, z - half, ICON_DEPTH).setColor(color).setUv(1, 0)
+                        .setLight(packedLight);
+                consumer.addVertex(matrix, x - half, z - half, ICON_DEPTH).setColor(color).setUv(0, 0)
+                        .setLight(packedLight);
+            }
         }
     }
 

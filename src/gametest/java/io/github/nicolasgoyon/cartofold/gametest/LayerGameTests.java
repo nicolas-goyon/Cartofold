@@ -8,6 +8,7 @@ import io.github.nicolasgoyon.cartofold.api.LayerInfo;
 import io.github.nicolasgoyon.cartofold.api.MapLine;
 import io.github.nicolasgoyon.cartofold.api.MapMarker;
 import io.github.nicolasgoyon.cartofold.api.MarkerClickEvent;
+import io.github.nicolasgoyon.cartofold.api.MarkerShapes;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -50,7 +51,9 @@ public final class LayerGameTests {
                 Optional.empty(), Component.literal("Heart"), Optional.of(Component.literal("Click")), true);
         MapMarker plain = MapMarker.of("plain", level.dimension(), new BlockPos(20, 64, 8), 0x0000FF,
                 Component.literal("Plain"));
-        return new LayerContent(info, List.of(area), List.of(line), List.of(clickable, plain));
+        MapMarker tinted = MapMarker.tinted("tinted", level.dimension(), new BlockPos(30, 64, 8), 0xFF0000,
+                MarkerShapes.RING, Component.literal("Tinted"));
+        return new LayerContent(info, List.of(area), List.of(line), List.of(clickable, plain, tinted));
     }
 
     /** The content of a layer stays the same after the network codec. */
