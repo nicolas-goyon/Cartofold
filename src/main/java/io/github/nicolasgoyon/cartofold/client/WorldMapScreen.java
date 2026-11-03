@@ -109,11 +109,14 @@ public final class WorldMapScreen extends Screen {
         ExplorationRequests.view(this, key, projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true);
+        MapLabels labels = new MapLabels(LayerRenderer.markerAt(player.level().dimension(), projection,
+                MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null), null);
+        MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true, labels);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
-            WaypointMarkers.renderWorldMap(graphics, font, player.level().dimension(), projection,
-                    CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get());
+            WaypointMarkers.renderWorldMap(graphics, player.level().dimension(), projection,
+                    CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get() ? labels : null, mouseX, mouseY);
         }
+        labels.draw(graphics, font);
         double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
         MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
                 (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));

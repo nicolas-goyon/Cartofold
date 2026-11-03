@@ -46,6 +46,11 @@ public record MapProjection(
         return y + height / 2;
     }
 
+    /** True if a point of the screen is in the rectangle. */
+    public boolean contains(double screenX, double screenY) {
+        return screenX >= x && screenX <= x + width && screenY >= y && screenY <= y + height;
+    }
+
     /**
      * The point of the screen of a position in the world.
      *

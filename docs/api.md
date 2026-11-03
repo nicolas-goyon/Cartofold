@@ -90,6 +90,10 @@ ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4
 - A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most and 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.
 
+### Names of the markers
+
+The map of the world and the map frames show the name of a marker under the marker. A name does not cover a name that the map already drew: the highest layers and the waypoints come first. The other markers show with no name. When the player zooms in, the hidden names show again. The selected marker and the marker under the mouse always show their names. A marker with an empty name shows no name.
+
 ### Colors of the markers
 
 A marker with a tinted icon shows the same icon in many colors, with no texture for each color. The views multiply the pixels of the icon by the color of the marker: a white pixel takes the color, and a dark outline stays dark.
@@ -181,6 +185,7 @@ protected void init() {
 - `showBox(minX, minZ, maxX, maxZ)` selects the center and the scale that show all of a box of blocks.
 - `onViewChange(view -> ...)` gets the new view when the player moves or zooms the frame.
 - `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
+- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `clearSelection()` removes the selection.
 
 A click on a clickable marker also posts `MarkerClickEvent` on the server.
 

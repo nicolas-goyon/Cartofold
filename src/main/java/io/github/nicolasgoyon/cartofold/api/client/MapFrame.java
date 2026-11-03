@@ -3,6 +3,7 @@ package io.github.nicolasgoyon.cartofold.api.client;
 import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.client.ExplorationRequests;
 import io.github.nicolasgoyon.cartofold.client.LayerRenderer;
+import io.github.nicolasgoyon.cartofold.client.MapLabels;
 import io.github.nicolasgoyon.cartofold.client.MapShapes;
 import io.github.nicolasgoyon.cartofold.client.MapView;
 import io.github.nicolasgoyon.cartofold.client.WaypointMarkers;
@@ -86,6 +87,8 @@ public class MapFrame extends AbstractWidget {
     private MarkerClickListener markerClick = (layer, marker) -> { };
     private Runnable emptyClick = () -> { };
     private Consumer<View> viewChange = view -> { };
+    @Nullable
+    private MapLabels.Key selected;
     private boolean pressed;
     private double pressX;
     private double pressY;
@@ -205,6 +208,23 @@ public class MapFrame extends AbstractWidget {
         return this;
     }
 
+    /**
+     * Shows a marker as selected: the marker has a mark, and its name always shows.
+     *
+     * @param layer  the identifier of the layer of the marker
+     * @param marker the identifier of the marker in its layer
+     */
+    public MapFrame select(ResourceLocation layer, String marker) {
+        this.selected = new MapLabels.Key(layer, marker);
+        return this;
+    }
+
+    /** Shows no marker as selected. */
+    public MapFrame clearSelection() {
+        this.selected = null;
+        return this;
+    }
+
     /** The projection of the frame: the screen point of a block and the block of a screen point. */
     public MapProjection projection() {
         return state.projection(getX(), getY(), width, height);
@@ -233,11 +253,14 @@ public class MapFrame extends AbstractWidget {
         graphics.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, BORDER);
         graphics.fill(getX(), getY(), getX() + width, getY() + height, BACKGROUND);
         graphics.flush();
-        MapView.render(graphics, key, projection, MapViewKind.FRAME, layers);
+        MapLabels labels = new MapLabels(isHovered() ? markerAt(mouseX, mouseY).map(LayerRenderer.Hit::key)
+                .orElse(null) : null, selected);
+        MapView.render(graphics, key, projection, MapViewKind.FRAME, layers, labels);
         graphics.enableScissor(getX(), getY(), getX() + width, getY() + height);
         if (showWaypoints) {
-            WaypointMarkers.renderWorldMap(graphics, Minecraft.getInstance().font, shown, projection, true);
+            WaypointMarkers.renderWorldMap(graphics, shown, projection, labels, mouseX, mouseY);
         }
+        labels.draw(graphics, Minecraft.getInstance().font);
         if (showPlayer && player.level().dimension().equals(shown)) {
             double[] point = projection.toScreen(player.getX(), player.getZ());
             MapShapes.drawArrow(graphics, (float) point[0], (float) point[1],

@@ -74,7 +74,7 @@ public final class Minimap {
             ExplorationRequests.view(Minimap.class, slice, ExplorationRequests.regionsNear(player.getBlockX(),
                     player.getBlockZ()));
         }
-        MapView.render(graphics, slice, projection, MapViewKind.MINIMAP, layer -> true);
+        MapView.render(graphics, slice, projection, MapViewKind.MINIMAP, layer -> true, null);
         graphics.flush();
         if (CartofoldClientConfig.MINIMAP_WAYPOINTS.get()) {
             WaypointMarkers.renderMinimap(graphics, minecraft.level.dimension(), projection, round);

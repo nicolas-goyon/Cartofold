@@ -21,8 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
+import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -46,6 +45,10 @@ public final class LayerRenderer {
 
     /** A marker of a layer. */
     public record Hit(ResourceLocation layer, MapMarker marker) {
+        /** The key of the marker in the names of a map. */
+        public MapLabels.Key key() {
+            return new MapLabels.Key(layer, marker.id());
+        }
     }
 
     /** True if the player shows the layer in this kind of view. */
@@ -58,9 +61,10 @@ public final class LayerRenderer {
      * Draws the visible layers of a dimension, in their order.
      *
      * @param layers the layers to draw, among the visible layers
+     * @param labels the names of the markers, or null for a view with no names
      */
     public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
-            MapViewKind kind, Predicate<ResourceLocation> layers) {
+            MapViewKind kind, Predicate<ResourceLocation> layers, @Nullable MapLabels labels) {
         record Entry(int order, Runnable draw) {
         }
         List<Entry> entries = new ArrayList<>();
@@ -69,7 +73,7 @@ public final class LayerRenderer {
         for (LayerContent content : ClientLayers.get().contents()) {
             if (visible(content.info(), kind) && layers.test(content.info().id())) {
                 entries.add(new Entry(content.info().order(),
-                        () -> drawContent(graphics, content, dimension, projection, kind, explored)));
+                        () -> drawContent(graphics, content, dimension, projection, labels, explored)));
             }
         }
         for (MapLayerRenderer renderer : ClientLayers.get().renderers()) {
@@ -102,7 +106,7 @@ public final class LayerRenderer {
     }
 
     private static void drawContent(GuiGraphics graphics, LayerContent content, ResourceKey<Level> dimension,
-            MapProjection projection, MapViewKind kind, Explored explored) {
+            MapProjection projection, @Nullable MapLabels labels, Explored explored) {
         boolean onlyExplored = content.info().onlyExplored();
         double[] bounds = projection.blockBounds();
         Matrix4f matrix = graphics.pose().last().pose();
@@ -152,13 +156,14 @@ public final class LayerRenderer {
             }
         }
         MapShapes.draw(buffer);
-        Font font = Minecraft.getInstance().font;
-        boolean names = kind == MapViewKind.WORLD_MAP || kind == MapViewKind.FRAME;
         for (MapMarker marker : content.markers()) {
             if (!marker.dimension().equals(dimension) || (onlyExplored && !explored.block(marker.pos()))) {
                 continue;
             }
             double[] point = projection.toScreen(marker.pos().getX() + 0.5, marker.pos().getZ() + 0.5);
+            if (labels != null && labels.selected(content.info().id(), marker.id())) {
+                MapShapes.drawSelection(graphics, (float) point[0], (float) point[1]);
+            }
             if (marker.icon().isPresent()) {
                 if (marker.tinted()) {
                     graphics.setColor(((marker.color() >> 16) & 0xFF) / 255f, ((marker.color() >> 8) & 0xFF) / 255f,
@@ -170,9 +175,9 @@ public final class LayerRenderer {
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
-            if (names) {
-                graphics.drawCenteredString(font, marker.name(), (int) Math.round(point[0]),
-                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2, 0xFFFFFFFF);
+            if (labels != null && projection.contains(point[0], point[1])) {
+                labels.add(content.info().id(), marker.id(), marker.name(), (int) Math.round(point[0]),
+                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2);
             }
         }
     }
