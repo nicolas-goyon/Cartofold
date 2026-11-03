@@ -9,6 +9,7 @@ import io.github.nicolasgoyon.cartofold.paper.CartofoldItems;
 import io.github.nicolasgoyon.cartofold.paper.CartofoldMapDecorations;
 import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapSync;
+import io.github.nicolasgoyon.cartofold.server.BannerService;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
 import io.github.nicolasgoyon.cartofold.server.LayerService;
 import io.github.nicolasgoyon.cartofold.server.WaypointService;
@@ -31,6 +32,8 @@ public final class Cartofold {
     /** The id of the mod. */
     public static final String MOD_ID = "cartofold";
     public static final Logger LOGGER = LogUtils.getLogger();
+    /** The source of the banners on the survey maps. */
+    public static final ResourceLocation BANNER_SOURCE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "banner");
 
     public Cartofold(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, CartofoldClientConfig.SPEC);
@@ -50,6 +53,11 @@ public final class Cartofold {
         NeoForge.EVENT_BUS.addListener(LayerService::onServerStopping);
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(BannerService::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(BannerService::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(BannerService::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(BannerService::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(BannerService::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(SurveyMapSync::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(SurveyMapSync::onPlayerLoggedOut);
         CartofoldItems.register(modEventBus);
@@ -59,7 +67,7 @@ public final class Cartofold {
         PaperMapMarkers.register(PaperMarkerSource.of(ResourceLocation.fromNamespaceAndPath(MOD_ID, "lodestone"),
                 state -> state.is(Blocks.LODESTONE), CartofoldMapDecorations.WAYPOINT,
                 (level, pos) -> Optional.of(Blocks.LODESTONE.getName())));
-        PaperMapMarkers.register(new PaperMarkerSource(ResourceLocation.fromNamespaceAndPath(MOD_ID, "banner"),
+        PaperMapMarkers.register(new PaperMarkerSource(BANNER_SOURCE,
                 state -> state.is(BlockTags.BANNERS), (level, pos) -> Optional.ofNullable(MapBanner.fromWorld(level,
                         pos)).map(banner -> new PaperMarkerSource.Marker(banner.getDecoration(),
                                 banner.name().orElse(Component.empty())))));

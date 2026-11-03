@@ -14,6 +14,7 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.LayerGeometry;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
+import io.github.nicolasgoyon.cartofold.waypoint.BannerMark;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -53,6 +54,9 @@ public final class LayerRenderer {
 
     /** True if the player shows the layer in this kind of view. */
     public static boolean visible(LayerInfo info, MapViewKind kind) {
+        if (info.id().equals(BannerMark.LAYER) && !CartofoldClientConfig.BANNER_VIEWS.get().shows(kind)) {
+            return false;
+        }
         return info.views().contains(kind) && !CartofoldClientConfig.HIDDEN_LAYERS.get().contains(info.id()
                 .toString());
     }
