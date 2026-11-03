@@ -160,6 +160,20 @@ CartofoldClientLayers.register(new MapLayerRenderer() {
 });
 ```
 
+## Open the map of the world
+
+A screen of a mod opens the map of the world at a position with `CartofoldWorldMap`. The map stays at this position until the player moves it. Escape then shows the screen of the mod again.
+
+```java
+CartofoldWorldMap.at(Level.OVERWORLD, villageX, villageZ)
+        .scale(2) // optional: by default, the map keeps the scale of the last map
+        .parent(this) // optional: the screen to show when the player closes the map
+        .select(layer, "north_village") // optional: this marker shows as selected
+        .open();
+```
+
+The game calls `init()` of the screen of the mod again when the map closes: keep the state of the screen in its fields. The server sends the chunks of the dimension of the player only. In another dimension, the map shows the chunks that the client has, and the layers.
+
 ## Map frames
 
 `MapFrame` is a widget for the screens of the other mods. It shows the explored map, the layers with the kind `MapViewKind.FRAME`, the waypoints and the player.

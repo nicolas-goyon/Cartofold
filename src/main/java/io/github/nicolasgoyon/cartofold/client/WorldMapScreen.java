@@ -31,7 +31,8 @@ import org.lwjgl.glfw.GLFW;
  * the space key puts the player at the center. The right button of the mouse adds a waypoint, or changes the waypoint
  * under the mouse. The left button on a marker of a layer sends the click to the server, and the "Layers" button shows
  * and hides the layers. The button at the top left and the keys Page Up, Page Down and Home select the surface or a
- * band of caves.
+ * band of caves. A mod can open the map at a position (see
+ * {@link io.github.nicolasgoyon.cartofold.api.client.CartofoldWorldMap}).
  */
 public final class WorldMapScreen extends Screen {
     private static final int BACKGROUND = 0xFF101010;
@@ -46,6 +47,13 @@ public final class WorldMapScreen extends Screen {
     private static WorldMapState last;
 
     private final WorldMapState state;
+    private final ResourceKey<Level> dimension;
+    /** The screen to show when the player closes the map, or null. */
+    @Nullable
+    private final Screen parent;
+    /** The marker that shows as selected, or null. */
+    @Nullable
+    private final MapLabels.Key selected;
     private boolean dragging;
     /** The slice of the map: the surface or a band of caves. */
     private MapSlice slice;
@@ -56,7 +64,32 @@ public final class WorldMapScreen extends Screen {
         super(Component.translatable("cartofold.worldmap.title"));
         double scale = last == null ? 1 : last.scale();
         this.state = new WorldMapState(player.getX(), player.getZ(), scale);
+        this.dimension = player.level().dimension();
+        this.parent = null;
+        this.selected = null;
         this.slice = MapSlices.of(player);
+    }
+
+    /**
+     * Makes a map of the surface of a dimension, at a position.
+     *
+     * @param player    the player
+     * @param dimension the dimension of the map
+     * @param blockX    the X of the block at the center
+     * @param blockZ    the Z of the block at the center
+     * @param scale     the scale, or null for the scale of the last map
+     * @param parent    the screen to show when the player closes the map, or null
+     * @param selected  the marker that shows as selected, or null
+     */
+    public WorldMapScreen(LocalPlayer player, ResourceKey<Level> dimension, double blockX, double blockZ,
+            @Nullable Double scale, @Nullable Screen parent, @Nullable MapLabels.Key selected) {
+        super(Component.translatable("cartofold.worldmap.title"));
+        this.state = new WorldMapState(player.getX(), player.getZ(), 1);
+        this.state.set(blockX, blockZ, scale != null ? scale : last != null ? last.scale() : 1);
+        this.dimension = dimension;
+        this.parent = parent;
+        this.selected = selected;
+        this.slice = MapSlice.SURFACE;
     }
 
     /** Shows another slice: the surface, or a band of caves. */
@@ -105,21 +138,23 @@ public final class WorldMapScreen extends Screen {
         }
         state.track(player.getX(), player.getZ());
         MapProjection projection = projection();
-        ExplorationKey key = new ExplorationKey(player.level().dimension(), slice);
+        ExplorationKey key = new ExplorationKey(dimension, slice);
         ExplorationRequests.view(this, key, projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
-        MapLabels labels = new MapLabels(LayerRenderer.markerAt(player.level().dimension(), projection,
-                MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null), null);
+        MapLabels labels = new MapLabels(LayerRenderer.markerAt(dimension, projection, MapViewKind.WORLD_MAP,
+                layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null), selected);
         MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true, labels);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
-            WaypointMarkers.renderWorldMap(graphics, player.level().dimension(), projection,
+            WaypointMarkers.renderWorldMap(graphics, dimension, projection,
                     CartofoldClientConfig.WORLD_MAP_WAYPOINT_NAMES.get() ? labels : null, mouseX, mouseY);
         }
         labels.draw(graphics, font);
-        double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
-        MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
-                (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
+        if (player.level().dimension().equals(dimension)) {
+            double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
+            MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
+                    (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
+        }
 
         double[] block = projection.toBlock(mouseX, mouseY);
         graphics.drawString(font, Component.translatable("cartofold.worldmap.coordinates",
@@ -129,7 +164,7 @@ public final class WorldMapScreen extends Screen {
         graphics.drawString(font, hint, width - font.width(hint) - 6, height - font.lineHeight - 4, HINT);
         super.render(graphics, mouseX, mouseY, partialTick);
         if (getChildAt(mouseX, mouseY).isEmpty()) {
-            graphics.renderComponentTooltip(font, LayerRenderer.tooltipAt(player.level().dimension(), projection,
+            graphics.renderComponentTooltip(font, LayerRenderer.tooltipAt(dimension, projection,
                     MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY), mouseX, mouseY);
         }
     }
@@ -145,21 +180,16 @@ public final class WorldMapScreen extends Screen {
             return true;
         }
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            if (minecraft != null && minecraft.player != null) {
-                Optional<LayerRenderer.Hit> hit = LayerRenderer.markerAt(minecraft.player.level().dimension(),
-                        projection(), MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY).filter(found -> found.marker()
-                                .clickable());
-                if (hit.isPresent()) {
-                    PacketDistributor.sendToServer(new MarkerClickPayload(hit.get().layer(), hit.get().marker()
-                            .id()));
-                    return true;
-                }
+            Optional<LayerRenderer.Hit> hit = LayerRenderer.clickableMarkerAt(dimension, projection(),
+                    MapViewKind.WORLD_MAP, layer -> true, mouseX, mouseY);
+            if (hit.isPresent()) {
+                PacketDistributor.sendToServer(new MarkerClickPayload(hit.get().layer(), hit.get().marker().id()));
+                return true;
             }
             dragging = true;
             return true;
         }
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && minecraft != null && minecraft.player != null) {
-            ResourceKey<Level> dimension = minecraft.player.level().dimension();
             MapProjection projection = projection();
             Optional<Waypoint> waypoint = CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()
                     ? WaypointMarkers.at(dimension, projection, mouseX, mouseY) : Optional.empty();
@@ -170,7 +200,7 @@ public final class WorldMapScreen extends Screen {
                 int blockX = (int) Math.floor(block[0]);
                 int blockZ = (int) Math.floor(block[1]);
                 minecraft.setScreen(WaypointScreen.add(this, dimension,
-                        new BlockPos(blockX, surface(dimension, blockX, blockZ), blockZ)));
+                        new BlockPos(blockX, surface(blockX, blockZ), blockZ)));
             }
             return true;
         }
@@ -212,7 +242,8 @@ public final class WorldMapScreen extends Screen {
             case GLFW.GLFW_KEY_PAGE_DOWN -> showSlice(nextBand(-1));
             case GLFW.GLFW_KEY_HOME -> showSlice(MapSlice.SURFACE);
             case GLFW.GLFW_KEY_SPACE -> {
-                if (minecraft != null && minecraft.player != null) {
+                if (minecraft != null && minecraft.player != null
+                        && minecraft.player.level().dimension().equals(dimension)) {
                     state.center(minecraft.player.getX(), minecraft.player.getZ());
                 }
             }
@@ -228,11 +259,18 @@ public final class WorldMapScreen extends Screen {
     }
 
     /** The Y of the top block of a column in the slice of the map, from the exploration data, or the Y of the player. */
-    private int surface(ResourceKey<Level> dimension, int blockX, int blockZ) {
+    private int surface(int blockX, int blockZ) {
         int fallback = minecraft == null || minecraft.player == null ? 64 : minecraft.player.getBlockY();
         return ClientExploration.get().region(new ExplorationKey(dimension, slice), RegionPos.ofBlock(blockX, blockZ))
                 .filter(region -> region.sampled(blockX >> 4, blockZ >> 4) != MapRegion.NEVER)
                 .map(region -> region.height(blockX, blockZ) + 1).orElse(fallback);
+    }
+
+    @Override
+    public void onClose() {
+        if (minecraft != null) {
+            minecraft.setScreen(parent);
+        }
     }
 
     @Override
