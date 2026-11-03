@@ -183,6 +183,17 @@ public final class LayerRenderer {
     /** The visible marker of the layers of a dimension at a point of the screen, or empty. */
     public static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        return markerAt(dimension, projection, kind, layers, screenX, screenY, marker -> true);
+    }
+
+    /** The visible clickable marker of the layers of a dimension at a point of the screen, or empty. */
+    public static Optional<Hit> clickableMarkerAt(ResourceKey<Level> dimension, MapProjection projection,
+            MapViewKind kind, Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        return markerAt(dimension, projection, kind, layers, screenX, screenY, MapMarker::clickable);
+    }
+
+    private static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY, Predicate<MapMarker> filter) {
         Hit best = null;
         double bestDistance = SELECT_DISTANCE;
         Explored explored = new Explored(dimension);
@@ -191,7 +202,7 @@ public final class LayerRenderer {
                 continue;
             }
             for (MapMarker marker : content.markers()) {
-                if (!marker.dimension().equals(dimension)
+                if (!filter.test(marker) || !marker.dimension().equals(dimension)
                         || (content.info().onlyExplored() && !explored.block(marker.pos()))) {
                     continue;
                 }

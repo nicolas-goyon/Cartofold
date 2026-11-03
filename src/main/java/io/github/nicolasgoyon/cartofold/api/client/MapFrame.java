@@ -40,11 +40,26 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <p>The frame shows the layers with the kind {@link MapViewKind#FRAME}. When the frame is interactive, the mouse moves
  * the map, the wheel changes the zoom, and a click on a clickable marker sends a
- * {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} on the server.
+ * {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} on the server. The screen can also get the clicks on
+ * the client, with no message to the server (see {@link #onMarkerClick} and {@link #onEmptyClick}).
  */
 public class MapFrame extends AbstractWidget {
     private static final int BACKGROUND = 0xFF101010;
     private static final int BORDER = 0xFF404040;
+    /** A press and a release with a larger move than this distance, in units of the screen, are a drag. */
+    private static final double CLICK_DISTANCE = 2;
+
+    /** Gets the clicks on the markers of a frame, on the client. */
+    @FunctionalInterface
+    public interface MarkerClickListener {
+        /**
+         * The player clicked a marker.
+         *
+         * @param layer  the identifier of the layer of the marker
+         * @param marker the identifier of the marker in its layer
+         */
+        void clicked(ResourceLocation layer, String marker);
+    }
 
     private final WorldMapState state;
     @Nullable
@@ -55,6 +70,11 @@ public class MapFrame extends AbstractWidget {
     private boolean showWaypoints = true;
     private boolean followPlayer;
     private MapSlice slice = MapSlice.SURFACE;
+    private MarkerClickListener markerClick = (layer, marker) -> { };
+    private Runnable emptyClick = () -> { };
+    private boolean pressed;
+    private double pressX;
+    private double pressY;
 
     /** Makes a frame centered on the player, at one unit of the screen for one block. */
     public MapFrame(int x, int y, int width, int height) {
@@ -122,6 +142,22 @@ public class MapFrame extends AbstractWidget {
         return this;
     }
 
+    /**
+     * Sets the function that gets the clicks on the markers of the frame, on the client. It gets the clicks on all the
+     * markers, also on the markers that are not clickable. The frame calls it when the player releases the mouse, and
+     * not after a drag of the map.
+     */
+    public MapFrame onMarkerClick(MarkerClickListener listener) {
+        this.markerClick = listener;
+        return this;
+    }
+
+    /** Sets the function that gets the clicks that hit no marker, on the client (see {@link #onMarkerClick}). */
+    public MapFrame onEmptyClick(Runnable listener) {
+        this.emptyClick = listener;
+        return this;
+    }
+
     /** The projection of the frame: the screen point of a block and the block of a screen point. */
     public MapProjection projection() {
         return state.projection(getX(), getY(), width, height);
@@ -178,13 +214,30 @@ public class MapFrame extends AbstractWidget {
         if (!interactive) {
             return;
         }
-        markerAt(mouseX, mouseY).filter(hit -> hit.marker().clickable()).ifPresent(hit -> PacketDistributor
-                .sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
+        pressed = true;
+        pressX = mouseX;
+        pressY = mouseY;
+        ResourceKey<Level> shown = shownDimension();
+        if (shown != null) {
+            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
+                    hit -> PacketDistributor.sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
+        }
+    }
+
+    @Override
+    public void onRelease(double mouseX, double mouseY) {
+        boolean click = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
+        pressed = false;
+        if (click) {
+            markerAt(mouseX, mouseY).ifPresentOrElse(hit -> markerClick.clicked(hit.layer(), hit.marker().id()),
+                    emptyClick);
+        }
     }
 
     @Override
     protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
         if (interactive) {
+            pressed = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
             state.drag(dragX, dragY);
             followPlayer = false;
         }
