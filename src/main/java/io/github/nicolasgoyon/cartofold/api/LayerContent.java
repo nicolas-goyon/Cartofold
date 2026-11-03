@@ -1,14 +1,18 @@
 package io.github.nicolasgoyon.cartofold.api;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
  * All the content of a layer, in all the dimensions: its description, its areas of chunks, its lines and its markers.
- * A new content of a layer replaces the old content.
+ * A new content of a layer replaces the old content. A {@link LayerUpdate} changes some elements of a layer.
  *
  * @param info    the description of the layer
  * @param areas   the areas of chunks, {@link #MAX_ELEMENTS} at most
@@ -33,6 +37,28 @@ public record LayerContent(LayerInfo info, List<ChunkArea> areas, List<MapLine> 
         areas = List.copyOf(areas);
         lines = List.copyOf(lines);
         markers = List.copyOf(markers);
+    }
+
+    /**
+     * The content after a change. The new elements go after the other elements. A changed element keeps its place.
+     *
+     * @throws IllegalArgumentException if the new content has more than {@link #MAX_ELEMENTS} elements of a kind
+     */
+    public LayerContent apply(LayerUpdate update) {
+        return new LayerContent(info, merge(areas, update.areas(), update.removedAreas(), ChunkArea::id),
+                merge(lines, update.lines(), update.removedLines(), MapLine::id),
+                merge(markers, update.markers(), update.removedMarkers(), MapMarker::id));
+    }
+
+    private static <T> List<T> merge(List<T> elements, List<T> changed, List<String> removed, Function<T, String> id) {
+        if (changed.isEmpty() && removed.isEmpty()) {
+            return elements;
+        }
+        Map<String, T> merged = new LinkedHashMap<>();
+        elements.forEach(element -> merged.put(id.apply(element), element));
+        removed.forEach(merged::remove);
+        changed.forEach(element -> merged.put(id.apply(element), element));
+        return new ArrayList<>(merged.values());
     }
 
     /** The marker with an identifier, if the layer has it. */

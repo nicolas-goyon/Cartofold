@@ -2,6 +2,7 @@ package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.api.LayerContent;
 import io.github.nicolasgoyon.cartofold.api.LayerInfo;
+import io.github.nicolasgoyon.cartofold.api.LayerUpdate;
 import io.github.nicolasgoyon.cartofold.api.client.MapLayerRenderer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,6 +35,15 @@ public final class ClientLayers {
     public synchronized void set(LayerContent content) {
         contents.put(content.info().id(), content);
         version++;
+    }
+
+    /** Changes some elements of a layer of the server. The client ignores a change of a layer that it does not have. */
+    public synchronized void update(ResourceLocation layer, LayerUpdate update) {
+        LayerContent content = contents.get(layer);
+        if (content != null) {
+            contents.put(layer, content.apply(update));
+            version++;
+        }
     }
 
     /** Removes a layer of the server. */

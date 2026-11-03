@@ -90,6 +90,26 @@ ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4
 - A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most and 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.
 
+### Changes of some elements
+
+A mod can change some elements of a layer, with no new copy of the layer. This is good for the markers that move often. The server sends only the change to the clients.
+
+```java
+MapMarker caravan = MapMarker.tinted("caravan_7", Level.OVERWORLD, pos, factionColor, MarkerShapes.DIAMOND,
+        Component.literal("Caravan"));
+
+// For the layer of setForAll.
+CartofoldLayers.updateForAll(id, LayerUpdate.marker(caravan));
+CartofoldLayers.updateForAll(id, LayerUpdate.removeMarker("caravan_7"));
+// For the layer of one player.
+CartofoldLayers.update(player, id, LayerUpdate.markers(caravans));
+```
+
+- An element with a new identifier goes into the layer. An element with the identifier of an element of the layer replaces it.
+- `LayerUpdate.area`, `removeArea`, `line` and `removeLine` change the areas and the lines. The constructor of `LayerUpdate` changes elements of all the kinds in one step.
+- A change of a layer that the server does not have does nothing. The limits of a layer stay the same.
+- A mod can also put the moving markers in a layer of their own, and send this layer only. The player then shows and hides the two layers one by one.
+
 ### Names of the markers
 
 The map of the world and the map frames show the name of a marker under the marker. A name does not cover a name that the map already drew: the highest layers and the waypoints come first. The other markers show with no name. When the player zooms in, the hidden names show again. The selected marker and the marker under the mouse always show their names. A marker with an empty name shows no name.
