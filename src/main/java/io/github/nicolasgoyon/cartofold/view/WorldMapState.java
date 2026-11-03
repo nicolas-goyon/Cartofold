@@ -67,6 +67,40 @@ public final class WorldMapState {
     }
 
     /**
+     * Sets the center and the scale. The state stops to follow the player.
+     *
+     * @param blockX the X of the block at the center
+     * @param blockZ the Z of the block at the center
+     * @param next   the number of units of the screen for one block
+     */
+    public void set(double blockX, double blockZ, double next) {
+        centerX = blockX;
+        centerZ = blockZ;
+        scale = Math.clamp(next, MIN_SCALE, MAX_SCALE);
+        follow = false;
+    }
+
+    /**
+     * Selects the center and the largest scale that show a box of blocks in a rectangle. The state stops to follow the
+     * player. When the box is too large for {@link #MIN_SCALE}, the rectangle shows the middle of the box.
+     *
+     * @param minX   the smallest X of the box
+     * @param minZ   the smallest Z of the box
+     * @param maxX   the largest X of the box
+     * @param maxZ   the largest Z of the box
+     * @param width  the width of the rectangle, in units of the screen
+     * @param height the height of the rectangle, in units of the screen
+     * @param margin the free space on each side of the rectangle, in units of the screen
+     */
+    public void fit(double minX, double minZ, double maxX, double maxZ, double width, double height, double margin) {
+        double boxWidth = Math.max(Math.abs(maxX - minX), 1);
+        double boxHeight = Math.max(Math.abs(maxZ - minZ), 1);
+        double freeWidth = Math.max(width - 2 * margin, 1);
+        double freeHeight = Math.max(height - 2 * margin, 1);
+        set((minX + maxX) / 2, (minZ + maxZ) / 2, Math.min(freeWidth / boxWidth, freeHeight / boxHeight));
+    }
+
+    /**
      * Moves the map with the mouse: the map goes with the mouse.
      *
      * @param dx the move of the mouse on X, in units of the screen
