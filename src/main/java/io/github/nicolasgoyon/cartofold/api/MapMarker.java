@@ -19,14 +19,18 @@ import net.minecraft.world.level.Level;
  * @param id        the identifier of the marker in its layer
  * @param dimension the dimension of the position
  * @param pos       the position
- * @param color     the color of the marker with no icon, in RGB
+ * @param color     the color of the marker, in RGB: the color of the diamond of a marker with no icon, and the color
+ *                  of a tinted icon
  * @param icon      the texture of the icon (a square image), or empty for a colored diamond
  * @param name      the name, under the marker on the map of the world and on the map frames
  * @param tooltip   the text when the mouse is on the marker, or empty
  * @param clickable true if a click on the marker sends a {@link MarkerClickEvent} on the server
+ * @param tinted    true to multiply the pixels of the icon by the color: a white pixel takes the color. With false, the
+ *                  icon keeps its own colors.
  */
 public record MapMarker(String id, ResourceKey<Level> dimension, BlockPos pos, int color,
-        Optional<ResourceLocation> icon, Component name, Optional<Component> tooltip, boolean clickable) {
+        Optional<ResourceLocation> icon, Component name, Optional<Component> tooltip, boolean clickable,
+        boolean tinted) {
     private static final StreamCodec<ByteBuf, Optional<ResourceLocation>> ICON_CODEC =
             ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC);
     private static final StreamCodec<RegistryFriendlyByteBuf, Optional<Component>> TOOLTIP_CODEC =
@@ -42,13 +46,32 @@ public record MapMarker(String id, ResourceKey<Level> dimension, BlockPos pos, i
                 ComponentSerialization.STREAM_CODEC.encode(buf, marker.name);
                 TOOLTIP_CODEC.encode(buf, marker.tooltip);
                 buf.writeBoolean(marker.clickable);
+                buf.writeBoolean(marker.tinted);
             },
             buf -> new MapMarker(buf.readUtf(), ResourceKey.streamCodec(Registries.DIMENSION).decode(buf),
                     buf.readBlockPos(), buf.readInt(), ICON_CODEC.decode(buf),
-                    ComponentSerialization.STREAM_CODEC.decode(buf), TOOLTIP_CODEC.decode(buf), buf.readBoolean()));
+                    ComponentSerialization.STREAM_CODEC.decode(buf), TOOLTIP_CODEC.decode(buf), buf.readBoolean(),
+                    buf.readBoolean()));
+
+    /** A marker with an icon that keeps its own colors. */
+    public MapMarker(String id, ResourceKey<Level> dimension, BlockPos pos, int color, Optional<ResourceLocation> icon,
+            Component name, Optional<Component> tooltip, boolean clickable) {
+        this(id, dimension, pos, color, icon, name, tooltip, clickable, false);
+    }
 
     /** A marker with no icon and no tooltip, and no click. */
     public static MapMarker of(String id, ResourceKey<Level> dimension, BlockPos pos, int color, Component name) {
         return new MapMarker(id, dimension, pos, color, Optional.empty(), name, Optional.empty(), false);
+    }
+
+    /**
+     * A marker with an icon in the color of the marker, with no tooltip and no click. One white icon thus shows in all
+     * the colors.
+     *
+     * @param icon the texture of the icon: a white icon of a mod, or a shape of {@link MarkerShapes}
+     */
+    public static MapMarker tinted(String id, ResourceKey<Level> dimension, BlockPos pos, int color,
+            ResourceLocation icon, Component name) {
+        return new MapMarker(id, dimension, pos, color, Optional.of(icon), name, Optional.empty(), false, true);
     }
 }

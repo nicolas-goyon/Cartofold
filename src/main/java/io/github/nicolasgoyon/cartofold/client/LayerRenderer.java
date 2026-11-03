@@ -160,8 +160,13 @@ public final class LayerRenderer {
             }
             double[] point = projection.toScreen(marker.pos().getX() + 0.5, marker.pos().getZ() + 0.5);
             if (marker.icon().isPresent()) {
+                if (marker.tinted()) {
+                    graphics.setColor(((marker.color() >> 16) & 0xFF) / 255f, ((marker.color() >> 8) & 0xFF) / 255f,
+                            (marker.color() & 0xFF) / 255f, 1);
+                }
                 graphics.blit(marker.icon().get(), (int) Math.round(point[0]) - ICON_SIZE / 2,
                         (int) Math.round(point[1]) - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1, 1, 1);
+                graphics.setColor(1, 1, 1, 1);
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
