@@ -152,5 +152,9 @@ protected void init() {
 - `interactive(false)` stops the moves, the zoom and the clicks of the mouse.
 - `dimension(...)` shows another dimension than the dimension of the player.
 - `projection()` gives the screen point of a block and the block of a screen point, for the draws of the screen above the frame.
+- `onMarkerClick((layer, marker) -> ...)` gets the clicks on the markers on the client, with no message to the server. It gets all the markers, also the markers that are not clickable.
+- `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
+
+A click on a clickable marker also posts `MarkerClickEvent` on the server.
 
 The client asks the server for the regions of each frame on the screen: the frame shows the chunks that the player explored, also far from the player.
