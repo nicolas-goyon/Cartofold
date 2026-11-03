@@ -5,7 +5,7 @@ name: Build
 # - pull request: the version after the merge, then "-pr.", the number and the short commit. Example:
 #   0.2.1-pr.12.abc1234.
 # - push on main: the version of the release.
-# Each build of develop also goes to Modrinth as an alpha, when the repository has the variable MODRINTH_PROJECT_ID.
+# Each build of develop also goes to Modrinth as an alpha. A fork skips this step.
 
 on:
   push:
@@ -98,9 +98,8 @@ jobs:
           if-no-files-found: error
 
       - name: Publish the dev build to Modrinth
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.MODRINTH_PROJECT_ID != ''
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.repository_owner == 'nicolas-goyon'
         env:
-          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |

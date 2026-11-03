@@ -32,6 +32,6 @@ The Maven of Modrinth gives the jar, the sources jar and the Javadoc jar with no
 ## Versions
 
 - **Release**: the stable versions.
-- **Alpha**: a build of each change of the branch `develop`. The version has the form `0.23.0-dev.abc1234`. Do not use an alpha in a world that you want to keep.
+- **Alpha**: a build of each change of the branch `develop`. The version has the form `0.23.1-dev.abc1234`. Do not use an alpha in a world that you want to keep.
 
 The source code is on [GitHub](https://github.com/nicolas-goyon/Cartofold), under the MIT license.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the logo of Cartofold: a vanilla map in the shape of a potato. "Kartoffel" is the German word for potato.
+"""Generate the logo of Cartofold: a potato in the middle of a paper map. "Kartoffel" is the German word for potato.
 
 Output:
 - src/main/resources/cartofold_logo.png
@@ -20,80 +20,88 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "..", "src", "main", "resour
 
 SIZE = 64
 SCALE = 8
+MARGIN = 3
 CENTER_X = 31.5
-CENTER_Y = 36.0
-SPROUT_X = 38
-TILT = math.radians(-24)
+CENTER_Y = 32.5
+TILT = math.radians(-20)
 
-OUTLINE = (58, 38, 22, 255)
-SKIN_DARK = (150, 104, 56, 255)
-SKIN = (196, 148, 88, 255)
-SKIN_LIGHT = (226, 186, 124, 255)
-PAPER = (232, 216, 168, 255)
-PAPER_DARK = (208, 188, 136, 255)
-LAND = (124, 168, 72, 255)
-LAND_DARK = (88, 132, 56, 255)
-WATER = (72, 124, 196, 255)
-SAND = (214, 196, 128, 255)
-MARK = (204, 40, 40, 255)
-SPROUT = (120, 196, 72, 255)
-SPROUT_DARK = (64, 132, 56, 255)
-DIMPLE = (120, 82, 46, 255)
+EDGE = (92, 64, 40, 255)
+PAPER_EDGE = (184, 156, 104, 255)
+PAPER = (226, 208, 158, 255)
+PAPER_LIGHT = (238, 224, 180, 255)
+PAPER_FOLD = (202, 180, 128, 255)
+LAND = (146, 176, 96, 255)
+LAND_DARK = (118, 152, 78, 255)
+WATER = (112, 156, 204, 255)
 
-
-def radius(angle):
-    """The edge of the potato in a direction: an oval with soft bumps."""
-    a = 28.0
-    b = 22.0
-    oval = a * b / math.hypot(b * math.cos(angle), a * math.sin(angle))
-    return oval + 1.5 * math.sin(3 * angle + 0.6) + 0.9 * math.sin(5 * angle + 2.0)
+OUTLINE = (58, 36, 20, 255)
+SKIN_DARK = (148, 98, 50, 255)
+SKIN = (194, 142, 80, 255)
+SKIN_LIGHT = (224, 180, 116, 255)
+SKIN_SHINE = (242, 212, 156, 255)
+DIMPLE = (112, 72, 38, 255)
 
 
-def polar(x, y):
-    """The distance from the center, as a part of the edge in this direction."""
+def on_paper(x, y):
+    """True if a pixel is on the sheet. The sides of the sheet have small notches."""
+    inset = MARGIN + (1 if (x // 5 + y // 5) % 3 == 0 else 0)
+    return inset <= x < SIZE - inset and inset <= y < SIZE - inset
+
+
+def paper(x, y):
+    """The color of a pixel of the sheet."""
+    near = (x - 1, x + 1)
+    if not (on_paper(near[0], y) and on_paper(near[1], y) and on_paper(x, y - 1) and on_paper(x, y + 1)):
+        return EDGE
+    if not (on_paper(x - 2, y) and on_paper(x + 2, y) and on_paper(x, y - 2) and on_paper(x, y + 2)):
+        return PAPER_EDGE
+    if x in (21, 42) or y == 32:
+        return PAPER_FOLD
+    corner = math.hypot(x - 11, y - 12) + 1.3 * math.sin(x * 0.9) * math.cos(y * 0.7)
+    other = math.hypot(x - 53, y - 52) + 1.3 * math.cos(x * 0.8) * math.sin(y * 0.8)
+    if corner < 10:
+        return LAND_DARK if (x + 2 * y) % 7 == 0 else LAND
+    if other < 11:
+        return LAND_DARK if (x + 2 * y) % 7 == 0 else LAND
+    if abs((x - 54) + (y - 8) * 0.8 + 2 * math.sin(y * 0.5)) < 3 and y < 30:
+        return WATER
+    if abs((y - 54) + (x - 9) * 0.5 + 2 * math.sin(x * 0.5)) < 2.5 and x < 34:
+        return WATER
+    return PAPER_LIGHT if (x // 2 + y // 2) % 5 == 0 else PAPER
+
+
+def potato(x, y):
+    """The color of a pixel of the potato, or None out of the potato."""
     dx = x - CENTER_X
     dy = y - CENTER_Y
     px = dx * math.cos(TILT) + dy * math.sin(TILT)
     py = -dx * math.sin(TILT) + dy * math.cos(TILT)
-    return math.hypot(px, py), radius(math.atan2(py, px))
-
-
-def land(x, y):
-    """The color of the map at a pixel, or None for the paper."""
-    river = 33 + 5 * math.sin(x / 6.0)
-    if abs(y - river + (x - 32) * 0.55) < 1.6:
-        return WATER
-    first = math.hypot(x - 23, (y - 28) * 1.2) + 1.5 * math.sin(x * 0.9) * math.cos(y * 0.7)
-    second = math.hypot(x - 42, (y - 44) * 1.15) + 1.5 * math.cos(x * 0.8) * math.sin(y * 0.9)
-    third = math.hypot(x - 45, y - 24) + 1.2 * math.sin(y * 1.1)
-    for value, size in ((first, 10.5), (second, 9.5), (third, 6.0)):
-        if value < size - 3:
-            return LAND_DARK if (x + y * 2) % 7 == 0 else LAND
-        if value < size - 1.5:
-            return LAND
-        if value < size:
-            return SAND
-    return None
+    angle = math.atan2(py, px)
+    a = 20.0
+    b = 14.5
+    edge = a * b / math.hypot(b * math.cos(angle), a * math.sin(angle))
+    edge += 1.3 * math.sin(3 * angle + 0.6) + 0.8 * math.sin(5 * angle + 2.0)
+    distance = math.hypot(px, py)
+    if distance > edge:
+        return None
+    if distance > edge - 1.2:
+        return OUTLINE
+    # The light comes from the top left.
+    light = (dx * 0.6 + dy * 0.8) / edge
+    if math.hypot(x - 23, y - 25) < 3.2:
+        return SKIN_SHINE
+    if light > 0.42:
+        return SKIN_DARK
+    if light < -0.28:
+        return SKIN_LIGHT
+    return SKIN
 
 
 def color(x, y):
-    """The color of a pixel of the potato, or None out of the potato."""
-    distance, edge = polar(x, y)
-    if distance > edge:
+    """The color of a pixel, or None out of the sheet."""
+    if not on_paper(x, y):
         return None
-    if distance > edge - 1.3:
-        return OUTLINE
-    if distance > edge - 4.2:
-        # The light comes from the top left.
-        light = (x - CENTER_X) * 0.6 + (y - CENTER_Y) * 0.8
-        return SKIN_LIGHT if light < -9 else SKIN_DARK if light > 9 else SKIN
-    pixel = land(x, y) or PAPER
-    if pixel == PAPER and (x + y) % 2 == 0 and int(x // 13) % 2 == 1:
-        pixel = PAPER_DARK
-    # The folds of the map: one dark line and one light line.
-    if x in (22, 42):
-        return OUTLINE if pixel is None else tuple(max(0, c - 44) for c in pixel[:3]) + (255,)
-    return pixel
+    return potato(x, y) or paper(x, y)
 
 
 def draw():
@@ -103,28 +111,11 @@ def draw():
             pixel = color(x, y)
             if pixel:
                 image.putpixel((x, y), pixel)
-    # The eyes of the potato, on its skin.
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if color(x, y) in (SKIN, SKIN_LIGHT, SKIN_DARK) and (x * 7 + y * 13) % 89 == 0:
-                image.putpixel((x, y), DIMPLE)
-                image.putpixel((x + 1, y), DIMPLE)
-    # The red cross of a treasure.
-    for step in range(-2, 3):
-        image.putpixel((37 + step, 35 + step), MARK)
-        image.putpixel((37 + step, 35 - step), MARK)
-        image.putpixel((38 + step, 35 + step), MARK)
-        image.putpixel((38 + step, 35 - step), MARK)
-    # The sprout grows from the top of the potato.
-    top = next(y for y in range(SIZE) if color(SPROUT_X, y) is not None)
-    for y in range(top - 5, top + 1):
-        image.putpixel((SPROUT_X, y), SPROUT_DARK)
-    for step in range(1, 6):
-        leaf = top - 5 - step // 2
-        image.putpixel((SPROUT_X + step, leaf), SPROUT)
-        image.putpixel((SPROUT_X + step, leaf - 1), SPROUT)
-        image.putpixel((SPROUT_X - step, leaf), SPROUT)
-        image.putpixel((SPROUT_X - step, leaf - 1), SPROUT)
+    # The eyes of the potato: a dark dimple with a light line under it.
+    for x, y in ((27, 31), (37, 25), (41, 34), (31, 39), (22, 37)):
+        for dx in (0, 1):
+            image.putpixel((x + dx, y), DIMPLE)
+            image.putpixel((x + dx, y + 1), SKIN_LIGHT)
     return image.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST)
 
 

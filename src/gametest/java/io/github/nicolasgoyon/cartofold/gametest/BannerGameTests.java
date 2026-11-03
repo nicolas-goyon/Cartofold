@@ -55,12 +55,27 @@ public final class BannerGameTests {
                 Direction.UP, pos, false)));
     }
 
+    /**
+     * The block for a test with a vanilla map. A vanilla map has a grid of 128 blocks, and does not accept a banner on the
+     * side of its area. Two columns at 2 blocks of distance are never both on a side.
+     */
+    private static BlockPos insideTheMapGrid(GameTestHelper helper) {
+        BlockPos absolute = helper.absolutePos(BLOCK);
+        return BLOCK.offset(onTheSide(absolute.getX()) ? 2 : 0, 0, onTheSide(absolute.getZ()) ? 2 : 0);
+    }
+
+    private static boolean onTheSide(int block) {
+        int place = Math.floorMod(block + 64, 128);
+        return place == 0 || place == 127;
+    }
+
     /** A vanilla map on a banner marks it for this player only. A second use removes the mark. */
     @GameTest(template = "empty", timeoutTicks = 20)
     public static void vanillaMapMarksTheBanner(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        helper.setBlock(BLOCK, Blocks.RED_BANNER);
-        BlockPos pos = helper.absolutePos(BLOCK);
+        BlockPos block = insideTheMapGrid(helper);
+        helper.setBlock(block, Blocks.RED_BANNER);
+        BlockPos pos = helper.absolutePos(block);
         ServerPlayer player = player(level);
         ServerPlayer other = player(level);
         ItemStack map = MapItem.create(level, pos.getX(), pos.getZ(), (byte) 0, false, false);

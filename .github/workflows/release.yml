@@ -6,9 +6,8 @@ name: Release
 # Modrinth. The Maven of Modrinth gives these files with no token, for the mods that use the API of Cartofold. The
 # release comes first: a Maven version is immutable, so a failed release step can run again only when the publication
 # did not happen.
-# The steps of Modrinth need the repository variable MODRINTH_PROJECT_ID and the secret MODRINTH_TOKEN (scopes
-# VERSION_CREATE and PROJECT_WRITE). With no variable, the workflow skips these steps. An error on the page of the
-# project does not stop the release.
+# The steps of Modrinth need the secret MODRINTH_TOKEN (scopes VERSION_CREATE and PROJECT_WRITE). A fork skips these
+# steps. An error on the page of the project does not stop the release.
 # When the tag of the version exists, the workflow makes no release. To run it again after a failure, use
 # "Run workflow" on main.
 
@@ -133,16 +132,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Modrinth
-        if: vars.MODRINTH_PROJECT_ID != ''
+        if: github.repository_owner == 'nicolas-goyon'
         env:
-          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: python3 scripts/modrinth.py publish --version "$VERSION" --notes build/release-notes.md
 
       - name: Update the page on Modrinth
-        if: vars.MODRINTH_PROJECT_ID != ''
+        if: github.repository_owner == 'nicolas-goyon'
         continue-on-error: true
         env:
-          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: python3 scripts/modrinth.py project --body docs/modrinth.md --icon src/main/resources/cartofold_logo.png
