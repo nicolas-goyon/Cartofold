@@ -13,6 +13,7 @@ import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
@@ -48,6 +49,18 @@ public class MapFrame extends AbstractWidget {
     private static final int BORDER = 0xFF404040;
     /** A press and a release with a larger move than this distance, in units of the screen, are a drag. */
     private static final double CLICK_DISTANCE = 2;
+    /** The free space around a box of {@link #showBox}, in units of the screen. */
+    private static final double BOX_MARGIN = 8;
+
+    /**
+     * The view of a frame. A screen can keep it and give it again to a new frame.
+     *
+     * @param centerX the X of the block at the center
+     * @param centerZ the Z of the block at the center
+     * @param scale   the number of units of the screen for one block
+     */
+    public record View(double centerX, double centerZ, double scale) {
+    }
 
     /** Gets the clicks on the markers of a frame, on the client. */
     @FunctionalInterface
@@ -72,6 +85,7 @@ public class MapFrame extends AbstractWidget {
     private MapSlice slice = MapSlice.SURFACE;
     private MarkerClickListener markerClick = (layer, marker) -> { };
     private Runnable emptyClick = () -> { };
+    private Consumer<View> viewChange = view -> { };
     private boolean pressed;
     private double pressX;
     private double pressY;
@@ -149,6 +163,39 @@ public class MapFrame extends AbstractWidget {
      */
     public MapFrame onMarkerClick(MarkerClickListener listener) {
         this.markerClick = listener;
+        return this;
+    }
+
+    /** The center and the scale of the frame now. */
+    public View view() {
+        return new View(state.centerX(), state.centerZ(), state.scale());
+    }
+
+    /** Sets the center and the scale. The frame stops to follow the player. */
+    public MapFrame view(View view) {
+        state.set(view.centerX(), view.centerZ(), view.scale());
+        followPlayer = false;
+        return this;
+    }
+
+    /**
+     * Selects the center and the scale that show all of a box of blocks. The scale stays between
+     * {@link WorldMapState#MIN_SCALE} and {@link WorldMapState#MAX_SCALE}. The frame stops to follow the player.
+     *
+     * @param minX the smallest X of the box
+     * @param minZ the smallest Z of the box
+     * @param maxX the largest X of the box
+     * @param maxZ the largest Z of the box
+     */
+    public MapFrame showBox(double minX, double minZ, double maxX, double maxZ) {
+        state.fit(minX, minZ, maxX, maxZ, width, height, BOX_MARGIN);
+        followPlayer = false;
+        return this;
+    }
+
+    /** Sets the function that gets the view of the frame when the player moves or zooms the frame. */
+    public MapFrame onViewChange(Consumer<View> listener) {
+        this.viewChange = listener;
         return this;
     }
 
@@ -240,6 +287,7 @@ public class MapFrame extends AbstractWidget {
             pressed = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
             state.drag(dragX, dragY);
             followPlayer = false;
+            viewChange.accept(view());
         }
     }
 
@@ -249,6 +297,7 @@ public class MapFrame extends AbstractWidget {
             return false;
         }
         state.zoom(projection(), mouseX, mouseY, scrollY);
+        viewChange.accept(view());
         return true;
     }
 

@@ -153,6 +153,10 @@ protected void init() {
 - `dimension(...)` shows another dimension than the dimension of the player.
 - `projection()` gives the screen point of a block and the block of a screen point, for the draws of the screen above the frame.
 - `onMarkerClick((layer, marker) -> ...)` gets the clicks on the markers on the client, with no message to the server. It gets all the markers, also the markers that are not clickable.
+- `view()` gives the center and the scale at any time, and `view(view)` sets them. A screen keeps the view between two openings.
+- `center(...)` and `scale(...)` also work at any time, not only when the screen makes the frame.
+- `showBox(minX, minZ, maxX, maxZ)` selects the center and the scale that show all of a box of blocks.
+- `onViewChange(view -> ...)` gets the new view when the player moves or zooms the frame.
 - `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
 
 A click on a clickable marker also posts `MarkerClickEvent` on the server.

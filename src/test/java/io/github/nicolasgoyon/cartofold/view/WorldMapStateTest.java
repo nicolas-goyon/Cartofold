@@ -8,6 +8,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class WorldMapStateTest {
+    @Test
+    void setStopsToFollowAndKeepsTheScaleInItsLimits() {
+        WorldMapState state = new WorldMapState(0, 0, 1);
+
+        state.set(100, -50, 100);
+
+        assertEquals(100, state.centerX());
+        assertEquals(-50, state.centerZ());
+        assertEquals(WorldMapState.MAX_SCALE, state.scale());
+        assertFalse(state.follows());
+    }
+
+    @Test
+    void fitShowsAllOfTheBox() {
+        WorldMapState state = new WorldMapState(0, 0, 1);
+
+        state.fit(-100, 0, 300, 100, 220, 120, 10);
+
+        assertEquals(100, state.centerX());
+        assertEquals(50, state.centerZ());
+        // 200 units for 400 blocks, and 100 units for 100 blocks: the width selects the scale.
+        assertEquals(0.5, state.scale());
+    }
+
+    @Test
+    void fitOfOneBlockUsesTheLargestScale() {
+        WorldMapState state = new WorldMapState(0, 0, 1);
+
+        state.fit(5, 5, 5, 5, 100, 100, 0);
+
+        assertEquals(WorldMapState.MAX_SCALE, state.scale());
+    }
+
     private static final double EPSILON = 1e-9;
 
     @Test
