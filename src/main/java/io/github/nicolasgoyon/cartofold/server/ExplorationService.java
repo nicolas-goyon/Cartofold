@@ -74,6 +74,8 @@ public final class ExplorationService {
     public static final int CAVE_SKY_LIGHT = 3;
     /** The largest radius of the exploration around a player, in chunks. */
     public static final int MAX_RADIUS = 12;
+    /** The permission level of a player that can see all the chunks with a sample (see {@link ExplorationSync}). */
+    public static final int ALL_CHUNKS_PERMISSION = 2;
     /** A chunk gets a new sample after this number of ticks. */
     public static final long RESAMPLE_TICKS = 20L * 60L * 2L;
     /** The largest number of samples each tick. */
@@ -170,7 +172,8 @@ public final class ExplorationService {
      */
     public static void onRequest(ExplorationRequestPayload payload, IPayloadContext context) {
         if (instance != null && context.player() instanceof ServerPlayer player) {
-            instance.sync.request(player.getUUID(), payload.dimension(), payload.slices(), instance.now());
+            instance.sync.request(player.getUUID(), payload.dimension(), payload.slices(), instance.now(),
+                    payload.allChunks() && player.hasPermissions(ALL_CHUNKS_PERMISSION));
         }
     }
 
@@ -187,6 +190,9 @@ public final class ExplorationService {
             if (player == null) {
                 sync.remove(uuid);
                 continue;
+            }
+            if (sync.getsAllChunks(uuid) && !player.hasPermissions(ALL_CHUNKS_PERMISSION)) {
+                sync.revokeAllChunks(uuid);
             }
             ExplorationChunksPayload payload = sync.poll(uuid, ExplorationSync.CHUNKS_PER_TICK, now);
             if (payload != null) {

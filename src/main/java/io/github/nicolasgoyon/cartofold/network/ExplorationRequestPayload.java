@@ -23,8 +23,10 @@ import net.minecraft.world.level.Level;
  *
  * @param dimension the dimension of the regions
  * @param slices    the regions of each slice, {@link #MAX_SLICES} slices at most
+ * @param allChunks true to ask for all the chunks with a sample, also the chunks that the player did not explore. The
+ *                  server accepts this request only from an operator.
  */
-public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<SliceRegions> slices)
+public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<SliceRegions> slices, boolean allChunks)
         implements CustomPacketPayload {
     /** The largest number of slices in one request. */
     public static final int MAX_SLICES = 4;
@@ -61,6 +63,7 @@ public record ExplorationRequestPayload(ResourceKey<Level> dimension, List<Slice
             StreamCodec.composite(
                     ResourceKey.streamCodec(Registries.DIMENSION), ExplorationRequestPayload::dimension,
                     SLICE_CODEC.apply(ByteBufCodecs.list(MAX_SLICES)), ExplorationRequestPayload::slices,
+                    ByteBufCodecs.BOOL, ExplorationRequestPayload::allChunks,
                     ExplorationRequestPayload::new);
 
     public ExplorationRequestPayload {

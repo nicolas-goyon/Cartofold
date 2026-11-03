@@ -8,6 +8,7 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
+import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapData;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapExploration;
 import io.github.nicolasgoyon.cartofold.server.ColumnSampler;
@@ -157,6 +158,37 @@ public final class ExplorationGameTests {
             sync.requestSurface(player.getUUID(), level.dimension(), List.of(), level.getGameTime());
             sync.remove(player.getUUID());
             sync.remove(other.getUUID());
+        });
+    }
+
+    /** A request of all the chunks gets a chunk that the player did not explore. A normal request does not. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void allChunksGivesTheChunksOfOtherPlayers(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        build(helper, new BlockPos(1, 0, 0));
+        BlockPos grass = helper.absolutePos(GRASS);
+        ExplorationService service = ExplorationService.get().orElseThrow();
+        ServerPlayer explorer = FakePlayerFactory.getMinecraft(level);
+        explorer.setPos(grass.getX() + 0.5, grass.getY() + 1, grass.getZ() + 0.5);
+        RegionPos pos = RegionPos.ofBlock(grass.getX(), grass.getZ());
+        UUID operator = UUID.randomUUID();
+        ExplorationSync sync = service.sync();
+        List<ExplorationRequestPayload.SliceRegions> slices = List.of(new ExplorationRequestPayload.SliceRegions(
+                MapSlice.SURFACE, List.of(pos)));
+
+        service.explore(explorer);
+        service.requestSample(level.dimension(), new ChunkPos(grass));
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(service.region(level.dimension(), pos, level.getGameTime())
+                    .sampled(grass.getX() >> 4, grass.getZ() >> 4) != MapRegion.NEVER, "The chunk must get a sample");
+            sync.request(operator, level.dimension(), slices, level.getGameTime());
+            helper.assertTrue(sync.pending(operator) == 0, "A normal request gets no chunk of another player");
+            sync.request(operator, level.dimension(), slices, level.getGameTime(), true);
+            helper.assertTrue(sync.pending(operator) > 0, "A request of all the chunks gets the chunk");
+            sync.request(operator, level.dimension(), slices, level.getGameTime());
+            helper.assertTrue(sync.pending(operator) == 0, "The end of the mode clears the queue");
+            sync.remove(operator);
         });
     }
 

@@ -83,6 +83,10 @@ public class MapFrame extends AbstractWidget {
     private boolean showPlayer = true;
     private boolean showWaypoints = true;
     private boolean followPlayer;
+    private boolean allChunks;
+    private int backgroundColor = BACKGROUND;
+    @Nullable
+    private Consumer<LayerRenderContext> background;
     private MapSlice slice = MapSlice.SURFACE;
     private MarkerClickListener markerClick = (layer, marker) -> { };
     private Runnable emptyClick = () -> { };
@@ -126,6 +130,35 @@ public class MapFrame extends AbstractWidget {
     /** Shows a slice: the surface (by default) or a band of caves. */
     public MapFrame slice(MapSlice slice) {
         this.slice = slice;
+        return this;
+    }
+
+    /**
+     * Sets the color of the frame where the map has no chunk.
+     *
+     * @param color the color, in ARGB
+     */
+    public MapFrame backgroundColor(int color) {
+        this.backgroundColor = color;
+        return this;
+    }
+
+    /**
+     * Sets a function that draws the background of the frame, below the chunks and below the layers. The frame calls it
+     * in each draw, with a scissor on the frame. The context has the projection of the frame.
+     */
+    public MapFrame background(Consumer<LayerRenderContext> renderer) {
+        this.background = renderer;
+        return this;
+    }
+
+    /**
+     * Shows all the chunks with a sample, also the chunks that the player did not explore. The server accepts this
+     * request only from an operator (permission level 2): for other players, the frame shows the explored chunks. The
+     * chunks that no player explored have no sample: the background shows there.
+     */
+    public MapFrame allChunks(boolean all) {
+        this.allChunks = all;
         return this;
     }
 
@@ -249,9 +282,15 @@ public class MapFrame extends AbstractWidget {
         }
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(shown, slice);
-        ExplorationRequests.view(this, key, projection.regions());
+        ExplorationRequests.view(this, key, projection.regions(), allChunks);
         graphics.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, BORDER);
-        graphics.fill(getX(), getY(), getX() + width, getY() + height, BACKGROUND);
+        graphics.fill(getX(), getY(), getX() + width, getY() + height, backgroundColor);
+        if (background != null) {
+            graphics.enableScissor(getX(), getY(), getX() + width, getY() + height);
+            background.accept(new LayerRenderContext(graphics, projection, shown, MapViewKind.FRAME));
+            graphics.flush();
+            graphics.disableScissor();
+        }
         graphics.flush();
         MapLabels labels = new MapLabels(isHovered() ? markerAt(mouseX, mouseY).map(LayerRenderer.Hit::key)
                 .orElse(null) : null, selected);
