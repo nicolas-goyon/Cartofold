@@ -42,7 +42,8 @@ public final class LayerGameTests {
     private static LayerContent content(ServerLevel level) {
         LayerInfo info = LayerInfo.of(LAYER, Component.literal("Test"), 5, true);
         ChunkArea area = ChunkArea.of("area", level.dimension(), List.of(new ChunkPos(0, 0), new ChunkPos(1, 0)),
-                0x4000FF00, 0xFF00FF00, Component.literal("Area"));
+                0x4000FF00, 0xFF00FF00, Component.literal("Area"),
+                List.of(Component.literal("Village"), Component.literal("Faction")));
         MapLine line = new MapLine("line", level.dimension(), List.of(BlockPos.ZERO, new BlockPos(40, 64, 8)),
                 0xFFFF0000, 2);
         MapMarker clickable = new MapMarker("heart", level.dimension(), new BlockPos(8, 64, 8), 0xFFAA00,

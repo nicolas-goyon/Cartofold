@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  */
 public final class CartofoldNetwork {
     /** The version of the payloads. Increase it when a payload changes. */
-    public static final String VERSION = "1";
+    public static final String VERSION = "2";
 
     private CartofoldNetwork() {
     }
