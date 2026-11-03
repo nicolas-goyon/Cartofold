@@ -9,6 +9,7 @@ import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,7 +34,8 @@ import net.minecraft.world.level.Level;
  *   <li>The server sends {@link #CHUNKS_PER_TICK} chunks at most each tick to each player.</li>
  * </ul>
  *
- * <p>A player only gets the chunks that it explored: the map data of the other chunks stays on the server.
+ * <p>A player only gets the chunks that it explored: the map data of the other chunks stays on the server. A request
+ * of an operator can ask for all the chunks with a sample. The server does not read the chunks that no player explored.
  */
 public final class ExplorationSync {
     /** The largest number of chunks that the server sends to a player each tick. */
@@ -41,6 +43,8 @@ public final class ExplorationSync {
 
     private final ExplorationService service;
     private final Map<UUID, Map<ExplorationKey, Subscription>> subscriptions = new HashMap<>();
+    /** The players that get all the chunks with a sample, also the chunks that they did not explore. */
+    private final Set<UUID> allChunks = new HashSet<>();
 
     /** The regions of a slice that a client shows, and the chunks to send to it. */
     private static final class Subscription {
@@ -60,10 +64,19 @@ public final class ExplorationSync {
      * @param dimension the dimension of the regions
      * @param slices    the regions of each slice
      * @param now       the game time
+     * @param all       true to send all the chunks with a sample, also the chunks that the player did not explore. The
+     *                  caller checks the permission of the player.
      */
     public void request(UUID player, ResourceKey<Level> dimension, List<ExplorationRequestPayload.SliceRegions> slices,
-            long now) {
-        Map<ExplorationKey, Subscription> old = subscriptions.getOrDefault(player, Map.of());
+            long now, boolean all) {
+        // A change of the mode queues the regions again.
+        boolean sameMode = all == allChunks.contains(player);
+        Map<ExplorationKey, Subscription> old = sameMode ? subscriptions.getOrDefault(player, Map.of()) : Map.of();
+        if (all) {
+            allChunks.add(player);
+        } else {
+            allChunks.remove(player);
+        }
         Map<ExplorationKey, Subscription> next = new LinkedHashMap<>();
         for (ExplorationRequestPayload.SliceRegions slice : slices) {
             ExplorationKey key = new ExplorationKey(dimension, slice.slice());
@@ -81,6 +94,12 @@ public final class ExplorationSync {
         subscriptions.put(player, next);
     }
 
+    /** Sets the regions that a client shows, for the chunks that the player explored (see {@link #request}). */
+    public void request(UUID player, ResourceKey<Level> dimension, List<ExplorationRequestPayload.SliceRegions> slices,
+            long now) {
+        request(player, dimension, slices, now, false);
+    }
+
     /** Sets the regions of the surface of a dimension that a client shows (see {@link #request}). */
     public void requestSurface(UUID player, ResourceKey<Level> dimension, List<RegionPos> regions, long now) {
         request(player, dimension, List.of(new ExplorationRequestPayload.SliceRegions(
@@ -94,20 +113,34 @@ public final class ExplorationSync {
         int minZ = pos.z() << MapRegion.CHUNK_SHIFT;
         for (int z = minZ; z < minZ + MapRegion.CHUNKS; z++) {
             for (int x = minX; x < minX + MapRegion.CHUNKS; x++) {
-                if (region.sampled(x, z) != MapRegion.NEVER && mask.isChunkExplored(x, z)) {
+                if (region.sampled(x, z) != MapRegion.NEVER && (allChunks.contains(player)
+                        || mask.isChunkExplored(x, z))) {
                     subscription.pending.add(new ChunkPos(x, z));
                 }
             }
         }
     }
 
+    /** True if a player gets all the chunks with a sample. */
+    boolean getsAllChunks(UUID player) {
+        return allChunks.contains(player);
+    }
+
+    /** Stops the sends of the chunks that a player did not explore: the player is not an operator any more. */
+    void revokeAllChunks(UUID player) {
+        allChunks.remove(player);
+        subscriptions.getOrDefault(player, Map.of()).values().forEach(subscription -> subscription.pending.clear());
+    }
+
     /** Stops the sends to a player. */
     public void remove(UUID player) {
         subscriptions.remove(player);
+        allChunks.remove(player);
     }
 
     /**
-     * A chunk has new map data: it goes to the queue of the players that show its region and that explored it.
+     * A chunk has new map data: it goes to the queue of the players that show its region and that explored it, and of
+     * the players that get all the chunks.
      *
      * @param key   the dimension and the slice of the chunk
      * @param chunk the chunk
@@ -117,8 +150,8 @@ public final class ExplorationSync {
         RegionPos pos = RegionPos.ofChunk(chunk.x, chunk.z);
         for (Map.Entry<UUID, Map<ExplorationKey, Subscription>> entry : subscriptions.entrySet()) {
             Subscription subscription = entry.getValue().get(key);
-            if (subscription != null && subscription.regions.contains(pos)
-                    && service.mask(key, entry.getKey(), pos, now).isChunkExplored(chunk.x, chunk.z)) {
+            if (subscription != null && subscription.regions.contains(pos) && (allChunks.contains(entry.getKey())
+                    || service.mask(key, entry.getKey(), pos, now).isChunkExplored(chunk.x, chunk.z))) {
                 subscription.pending.add(chunk);
             }
         }
