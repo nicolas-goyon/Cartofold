@@ -6,30 +6,34 @@ The API is in the packages `io.github.nicolasgoyon.cartofold.api` (server and co
 
 ## Add Cartofold to a mod
 
-Each release puts the jar in GitHub Packages, with the sources jar and the Javadoc jar. GitHub Packages needs a GitHub token with the permission `read:packages`, also for a public package. In GitHub Actions, the `GITHUB_TOKEN` of the workflow can read the package when the workflow has `packages: read`.
+Each release puts the jar, the sources jar and the Javadoc jar on [Modrinth](https://modrinth.com/mod/cartofold). The Maven of Modrinth needs no account and no token. The jar is also a file of each GitHub Release.
 
 In `build.gradle` (ModDevGradle):
 
 ```groovy
 repositories {
-    maven {
-        name = 'Cartofold'
-        url = uri('https://maven.pkg.github.com/nicolas-goyon/cartofold')
-        credentials {
-            username = providers.environmentVariable('GITHUB_ACTOR').getOrElse('')
-            password = providers.environmentVariable('GITHUB_TOKEN').getOrElse('')
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = uri('https://api.modrinth.com/maven')
+            }
         }
-        content {
-            includeGroup 'io.github.nicolasgoyon.cartofold'
+        filter {
+            includeGroup 'maven.modrinth'
         }
     }
 }
 
 dependencies {
     // A required dependency: the mod and the dev runs have Cartofold.
-    implementation 'io.github.nicolasgoyon.cartofold:cartofold:0.4.0'
+    implementation 'maven.modrinth:cartofold:0.23.0'
 }
 ```
+
+Each release also puts the jar in GitHub Packages, with the group `io.github.nicolasgoyon.cartofold` and the artifact `cartofold`. GitHub Packages needs a GitHub token with the permission `read:packages`, also for a public package.
+
+A modpack of packwiz adds Cartofold with `packwiz modrinth add cartofold`.
 
 For an optional dependency, use `compileOnly` for the compilation, and `runtimeOnly` if the dev runs need Cartofold.
 

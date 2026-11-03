@@ -2,9 +2,12 @@ name: Release
 
 # A merge of develop into main makes a release. The version comes from the bump markers of the commits (see
 # scripts/version.py). The workflow tags the commit of develop, creates a GitHub Release with the jar and the release
-# notes, then publishes the jar to GitHub Packages (Maven), for the mods that use the API of Cartofold. The release
-# comes first: a Maven version is immutable, so a failed release step can run again only when the publication did not
-# happen.
+# notes, publishes the jar to GitHub Packages (Maven), then publishes the jar, the sources jar and the Javadoc jar to
+# Modrinth. The Maven of Modrinth gives these files with no token, for the mods that use the API of Cartofold. The
+# release comes first: a Maven version is immutable, so a failed release step can run again only when the publication
+# did not happen.
+# The step of Modrinth needs the repository variable MODRINTH_PROJECT_ID and the secret MODRINTH_TOKEN (scope
+# VERSION_CREATE). With no variable, the workflow skips the step.
 # When the tag of the version exists, the workflow makes no release. To run it again after a failure, use
 # "Run workflow" on main.
 
@@ -127,3 +130,10 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Modrinth
+        if: vars.MODRINTH_PROJECT_ID != ''
+        env:
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 scripts/modrinth.py --version "$VERSION" --notes build/release-notes.md
