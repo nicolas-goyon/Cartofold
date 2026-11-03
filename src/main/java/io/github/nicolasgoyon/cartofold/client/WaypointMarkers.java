@@ -5,7 +5,6 @@ import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
 import java.util.Optional;
 import javax.annotation.Nullable;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -48,18 +47,19 @@ public final class WaypointMarkers {
     /**
      * Draws the waypoints of a dimension on the map of the world.
      *
-     * @param names true to show the names under the markers
+     * @param labels the names of the markers: the waypoints add their names to it, or null to show no name
+     * @param mouseX the X of the mouse: the waypoint under the mouse always shows its name
+     * @param mouseY the Y of the mouse
      */
-    public static void renderWorldMap(GuiGraphics graphics, Font font, ResourceKey<Level> dimension,
-            MapProjection projection, boolean names) {
+    public static void renderWorldMap(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
+            @Nullable MapLabels labels, double mouseX, double mouseY) {
         for (Waypoint waypoint : ClientWaypoints.get().in(dimension)) {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], waypoint.color(), waypoint.death());
-            if (!names) {
-                continue;
+            if (labels != null && projection.contains(point[0], point[1])) {
+                labels.add(name(waypoint), (int) Math.round(point[0]), (int) Math.round(point[1]) + MARKER_SIZE + 1,
+                        Math.hypot(point[0] - mouseX, point[1] - mouseY) <= SELECT_DISTANCE);
             }
-            graphics.drawCenteredString(font, name(waypoint), (int) Math.round(point[0]),
-                    (int) Math.round(point[1]) + MARKER_SIZE + 1, 0xFFFFFFFF);
         }
     }
 

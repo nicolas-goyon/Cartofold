@@ -16,6 +16,8 @@ import org.joml.Matrix4f;
 public final class MapShapes {
     private static final int ARROW = 0xFFFFFFFF;
     private static final int ARROW_OUTLINE = 0xFF000000;
+    /** The half of the free space in the mark of a selected marker, in units of the screen. */
+    private static final float SELECTION = 6f;
 
     private MapShapes() {
     }
@@ -57,6 +59,29 @@ public final class MapShapes {
         square(buffer, matrix, 4f, ARROW_OUTLINE);
         square(buffer, matrix, 2.8f, 0xFF000000 | color);
         draw(buffer);
+    }
+
+    /** Draws the mark of a selected marker at a point: a white frame around the marker. */
+    public static void drawSelection(GuiGraphics graphics, float x, float y) {
+        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
+        BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
+        frame(buffer, matrix, SELECTION, SELECTION + 2.2f, ARROW_OUTLINE);
+        frame(buffer, matrix, SELECTION + 0.8f, SELECTION + 1.4f, ARROW);
+        draw(buffer);
+    }
+
+    /** Adds a square frame around the origin, between two half sizes. */
+    private static void frame(BufferBuilder buffer, Matrix4f matrix, float inner, float outer, int color) {
+        rectangle(buffer, matrix, -outer, -outer, outer, -inner, color);
+        rectangle(buffer, matrix, -outer, inner, outer, outer, color);
+        rectangle(buffer, matrix, -outer, -inner, -inner, inner, color);
+        rectangle(buffer, matrix, inner, -inner, outer, inner, color);
+    }
+
+    private static void rectangle(BufferBuilder buffer, Matrix4f matrix, float minX, float minY, float maxX, float maxY,
+            int color) {
+        quad(buffer, matrix, new double[] {minX, minY}, new double[] {minX, maxY}, new double[] {maxX, maxY},
+                new double[] {maxX, minY}, color);
     }
 
     private static void square(BufferBuilder buffer, Matrix4f matrix, float half, int color) {

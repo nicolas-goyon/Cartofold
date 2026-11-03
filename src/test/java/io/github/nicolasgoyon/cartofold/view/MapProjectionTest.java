@@ -2,13 +2,25 @@ package io.github.nicolasgoyon.cartofold.view;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MapProjectionTest {
+    @Test
+    void containsTellsThePointsOfTheRectangle() {
+        MapProjection projection = MapProjection.north(10, 20, 100, 50, 0, 0, 1);
+
+        assertTrue(projection.contains(10, 20));
+        assertTrue(projection.contains(110, 70));
+        assertFalse(projection.contains(9, 30));
+        assertFalse(projection.contains(50, 71));
+    }
+
     private static final double EPSILON = 1e-9;
 
     @Test
