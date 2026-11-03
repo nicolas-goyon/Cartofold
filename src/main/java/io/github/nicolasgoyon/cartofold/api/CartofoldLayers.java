@@ -32,6 +32,18 @@ public final class CartofoldLayers {
         service().setGlobal(content);
     }
 
+    /**
+     * Changes some elements of a layer of {@link #setForAll}. The players get only the change. A layer that the server
+     * does not have stays out.
+     *
+     * @param layer  the identifier of the layer
+     * @param update the change
+     * @throws IllegalArgumentException if the new layer has too many elements
+     */
+    public static void updateForAll(ResourceLocation layer, LayerUpdate update) {
+        service().updateGlobal(layer, update);
+    }
+
     /** Removes a layer of {@link #setForAll}. */
     public static void removeForAll(ResourceLocation layer) {
         service().removeGlobal(layer);
@@ -43,6 +55,19 @@ public final class CartofoldLayers {
      */
     public static void set(ServerPlayer player, LayerContent content) {
         service().send(player, content);
+    }
+
+    /**
+     * Changes some elements of a layer of a player. The player gets only the change. A layer that the player does not
+     * have stays out.
+     *
+     * @param player the player
+     * @param layer  the identifier of the layer
+     * @param update the change
+     * @throws IllegalArgumentException if the new layer has too many elements
+     */
+    public static void update(ServerPlayer player, ResourceLocation layer, LayerUpdate update) {
+        service().update(player, layer, update);
     }
 
     /** Removes a layer of a player. */
