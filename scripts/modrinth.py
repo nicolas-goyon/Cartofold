@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Publish Cartofold to Modrinth: the versions and the page of the project.
 
-    MODRINTH_PROJECT_ID=... MODRINTH_TOKEN=... python3 scripts/modrinth.py publish --version 1.2.3 --notes notes.md
-    MODRINTH_PROJECT_ID=... MODRINTH_TOKEN=... python3 scripts/modrinth.py project --body docs/modrinth.md --icon logo.png
+    MODRINTH_TOKEN=... python3 scripts/modrinth.py publish --version 1.2.3 --notes notes.md
+    MODRINTH_TOKEN=... python3 scripts/modrinth.py project --body docs/modrinth.md --icon logo.png
+
+The project comes from modrinth_project_id in gradle.properties.
 
 `publish` sends the jar as the primary file, and the sources jar and the Javadoc jar as additional files. The Maven of
 Modrinth then gives the three files with no token. The files keep the names of Gradle: the Maven finds the suffixes
@@ -160,7 +162,7 @@ def main():
     project_page.add_argument("--icon", required=True, help="the PNG file of the icon")
     project_page.set_defaults(run=page)
     args = parser.parse_args()
-    return args.run(args, os.environ["MODRINTH_PROJECT_ID"], os.environ["MODRINTH_TOKEN"])
+    return args.run(args, properties("gradle.properties")["modrinth_project_id"], os.environ["MODRINTH_TOKEN"])
 
 
 if __name__ == "__main__":
