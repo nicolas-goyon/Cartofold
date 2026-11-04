@@ -28,6 +28,8 @@ API = "https://api.modrinth.com/v2"
 USER_AGENT = "nicolas-goyon/cartofold (release workflow)"
 SUFFIXES = ("", "-sources", "-javadoc")
 TYPES = ("release", "beta", "alpha")
+# Cartofold is required on the client and on the server.
+ENVIRONMENT = "client_and_server"
 
 
 def properties(path):
@@ -52,6 +54,7 @@ def metadata(project, version, notes, props, version_type="release"):
         "game_versions": [props["minecraft_version"]],
         "version_type": version_type,
         "loaders": ["neoforge"],
+        "environment": ENVIRONMENT,
         "featured": version_type == "release",
         "status": "listed",
         "file_parts": [f"file{index}" for index in range(len(SUFFIXES))],
