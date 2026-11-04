@@ -27,13 +27,13 @@ repositories {
 
 dependencies {
     // A required dependency: the mod and the dev runs have Cartofold.
-    implementation 'maven.modrinth:cartofold:0.23.1'
+    implementation 'maven.modrinth:cartofold:0.23.4'
 }
 ```
 
 Each release also puts the jar in GitHub Packages, with the group `io.github.nicolasgoyon.cartofold` and the artifact `cartofold`. GitHub Packages needs a GitHub token with the permission `read:packages`, also for a public package.
 
-Each push on `develop` also puts a dev build on Modrinth, in the channel `alpha`, for example `maven.modrinth:cartofold:0.23.1-dev.abc1234`. A dev build can change the API with no notice.
+Each push on `develop` also puts a dev build on Modrinth, in the channel `alpha`, for example `maven.modrinth:cartofold:0.23.4-dev.abc1234`. A dev build can change the API with no notice.
 
 A modpack of packwiz adds Cartofold with `packwiz modrinth add cartofold`.
 
