@@ -73,4 +73,4 @@ The vanilla storage of the Overworld keeps the survey maps (`cartofold_survey_ma
 | Build | Push and pull request | Builds, tests and publishes the dev builds. |
 | Pull request | Pull request | Checks the title, and shows the next version. |
 | Release | Push on `main` | Makes a release. |
-| Pages | Change of the documentation, or a release | Builds this site. |
+| Pages | Change of the documentation or of the code, or a release | Builds this site and the Javadoc. |

@@ -1,7 +1,7 @@
 name: Pages
 
-# Builds the documentation site with MkDocs, and deploys it to GitHub Pages. The release notes come from the GitHub
-# Releases. A pull request only builds the site, with the strict checks of mkdocs.yml.
+# Builds the documentation site with MkDocs and the Javadoc with Gradle, and deploys them to GitHub Pages. The release
+# notes come from the GitHub Releases. A pull request only builds the site, with the strict checks of mkdocs.yml.
 # The workflow Release starts this workflow with "workflow_dispatch": a release that GITHUB_TOKEN creates does not start
 # a "release" event.
 # The source of GitHub Pages in the settings of the repository must be "GitHub Actions".
@@ -15,6 +15,7 @@ on:
       - requirements-docs.txt
       - scripts/release_notes.py
       - src/gametest/java/io/github/nicolasgoyon/cartofold/gametest/ApiExamples.java
+      - src/main/java/**
       - .github/workflows/pages.yml
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - requirements-docs.txt
       - scripts/release_notes.py
       - src/gametest/java/io/github/nicolasgoyon/cartofold/gametest/ApiExamples.java
+      - src/main/java/**
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -37,10 +39,13 @@ jobs:
   build:
     name: Build the site
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -61,6 +66,11 @@ jobs:
 
       - name: Build the site
         run: mkdocs build
+
+      - name: Add the Javadoc to the site
+        run: |
+          ./gradlew javadoc --stacktrace
+          cp -r build/docs/javadoc site/javadoc
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

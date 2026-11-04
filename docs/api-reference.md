@@ -1,6 +1,6 @@
 # API reference
 
-This page lists the public API of Cartofold. The [API guide](api.md) explains how to add Cartofold to a mod, and the [examples](api-examples.md) show complete code. The Javadoc jar of each version has the same documentation in the IDE.
+This page lists the public API of Cartofold. The [API guide](api.md) explains how to add Cartofold to a mod, and the [examples](api-examples.md) show complete code. The [Javadoc](https://nicolas-goyon.github.io/Cartofold/javadoc/io/github/nicolasgoyon/cartofold/api/package-summary.html) comes from the code of `develop`. The Javadoc jar of each version gives the same documentation in the IDE.
 
 The API is in the packages `io.github.nicolasgoyon.cartofold.api` (server and common) and `io.github.nicolasgoyon.cartofold.api.client` (client). `MapProjection` and `MapSlice` are also part of the API, because the API gives or takes them. The other packages can change in a minor version.
 
