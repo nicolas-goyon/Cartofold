@@ -1,47 +1,40 @@
-<img src="src/main/resources/cartofold_logo.png" alt="The logo of Cartofold: a map in the shape of a potato" width="128">
+<div align="center">
+
+<img src="src/main/resources/cartofold_logo.png" alt="The logo of Cartofold: a potato in the middle of a paper map" width="128">
 
 # Cartofold
 
-Cartofold is a map mod for Minecraft (NeoForge 1.21.1). It gives one map engine to all the maps of the game:
+**One map engine for the minimap, the world map, the paper maps and the maps of the other mods.**
 
-- a minimap on the screen, and a map of the explored world (key M);
-- survey maps: paper maps of their own, with the layers of the other mods, waypoints and a cartography table that moves and updates them;
-- an API for the other mods: they add layers to all the maps (for example territories, routes, markers) and show a map frame in their own screens.
+[![Build](https://img.shields.io/github/actions/workflow/status/nicolas-goyon/Cartofold/build.yml?branch=develop&label=build)](https://github.com/nicolas-goyon/Cartofold/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/nicolas-goyon/Cartofold?label=release)](https://github.com/nicolas-goyon/Cartofold/releases/latest)
+[![Modrinth](https://img.shields.io/modrinth/dt/fmrNNS3n?logo=modrinth&label=modrinth)](https://modrinth.com/project/cartofold)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-795548)](https://nicolas-goyon.github.io/Cartofold/)
+![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A)
+![NeoForge](https://img.shields.io/badge/NeoForge-21.1-E68C37)
+[![License: MIT](https://img.shields.io/github/license/nicolas-goyon/Cartofold)](LICENSE)
 
-The mod does not depend on other mods. It is necessary on the server and on the client: the server records the exploration.
+</div>
 
-## Features
+Cartofold is a map mod for Minecraft (NeoForge). It needs no other mod. Install it on the server and on the client.
 
-- **Map engine**: the server records the exploration of each player (the Overworld, the End, and the floor of the Nether under its ceiling) and sends to each client only the chunks that the player explored.
-- **Minimap**: square or round, five zoom levels, the north, the arrow of the player and the coordinates. It turns with the player or keeps the north at the top.
-- **Map of the world**: move, zoom around the mouse, center on the player, the coordinates under the mouse.
-- **Caves**: in a cave, the minimap and the map of the world show the caves at the height of the player, in bands of 16 blocks. Page Up and Page Down select a band on the map of the world.
-- **Banners**: a banner that a player marks on a vanilla map or on a survey map also shows on the minimap and on the map of the world of this player. A setting selects the views, and the "Layers" button hides the markers.
-- **Waypoints of the player**: a name, a color and a position, on the minimap and on the map of the world. A death adds a waypoint.
-- **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther. The cartography table zooms, copies, locks, moves and updates them. Banners, lodestones and the blocks of other mods mark them.
-- **API**: layers (areas of chunks, lines, markers with a click), map frames for the screens of other mods, and blocks that mark the paper maps.
-- **Settings**: the settings screen of the client, in English and in French.
+- **Minimap and map of the world**, with the caves at the height of the player.
+- **Waypoints and banners** on all your maps.
+- **Survey maps**: paper maps of their own, with a cartography table that moves and updates them.
+- **API**: other mods add layers to all the maps, and show map frames in their own screens.
 
-The design is in [docs/design.md](docs/design.md).
+## Documentation
 
-## Keys
-
-| Key | Action |
+| Read | For |
 | --- | --- |
-| M | Open the map of the world |
-| Y | Show or hide the minimap |
-| `[` and `]` | Zoom out and zoom in the minimap |
-| B | Add a waypoint at the player |
+| [Player guide](https://nicolas-goyon.github.io/Cartofold/guide/install/) | Install, keys, maps and settings |
+| [API guide](https://nicolas-goyon.github.io/Cartofold/api/) | Use Cartofold in a mod |
+| [Architecture](https://nicolas-goyon.github.io/Cartofold/technical/architecture/) | Understand the code |
+| [Release notes](https://nicolas-goyon.github.io/Cartofold/release-notes/) | See the changes of each version |
 
-The settings screen opens from the list of the mods and from the map of the world.
+## Contribute
 
-## API
-
-Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release goes to [Modrinth](https://modrinth.com/mod/cartofold) and to GitHub Packages.
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md): the workflow, the build, the tests and the versions.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, the build, the tests and the versions.
 
 ## License
 

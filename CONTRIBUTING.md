@@ -22,6 +22,7 @@
 - `./gradlew spotlessApply`: fixes the format of the files.
 - `./gradlew runGameTestServer`: runs the in-game tests (GameTest) in a new world, then stops.
 - `./gradlew runClient` and `./gradlew runServer`: a client and a dedicated server with the mod.
+- `mkdocs serve`: shows the documentation site. Install `requirements-docs.txt` first. Each new page goes in `nav` of `mkdocs.yml`.
 - The pure logic (projection, colors, layers) has JUnit tests. The behavior in the game has GameTests.
 
 ## Versions and releases
@@ -33,5 +34,6 @@
   - `[major]`: a change that breaks the worlds or the API. 1.2.3 becomes 2.0.0.
 - The version starts from the last release tag (`vX.Y.Z`). The commits after the tag apply their bump in order, the oldest first. A commit with no marker keeps the version. A commit of Dependabot counts as `[patch]`.
 - `python3 scripts/version.py version --rev <commit>` gives the version of a commit.
+- The workflow **Build** has one job for each task: the version, the tests of the scripts, the build (compilation, format and translations), the unit tests and the GameTests. When all these jobs pass on `develop`, the last job publishes the dev build.
 - The workflow **Build** gives each build a version: the version of the commit with `-dev.<commit>` for `develop`, and the version after the merge with `-pr.<number>.<commit>` for a pull request.
 - The workflow **Release** runs on each push on `main`. It tags the commit of `develop` with `vX.Y.Z`, creates a GitHub Release with the jar and the release notes, publishes the jar to GitHub Packages, then publishes the jar, the sources jar and the Javadoc jar to Modrinth. It then sets the description and the icon of the Modrinth project from `docs/modrinth.md` and `src/main/resources/cartofold_logo.png`. The steps of Modrinth need the secret `MODRINTH_TOKEN` (scopes `VERSION_CREATE` and `PROJECT_WRITE`). Each push on `develop` also puts a dev build on Modrinth, in the channel `alpha`, with the version `X.Y.Z-dev.<commit>`. If the tag exists, it makes no release. To make a release, open a pull request from `develop` to `main` and merge it with a merge commit (not a squash), so that `develop` contains the tag.

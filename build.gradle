@@ -196,7 +196,7 @@ spotless {
         endWithNewline()
     }
     format('misc') {
-        target '*.gradle', '.github/workflows/*.yml', '*.md', 'docs/*.md', 'src/*/resources/**/*.json',
+        target '*.gradle', '.github/workflows/*.yml', '*.md', 'docs/**/*.md', 'src/*/resources/**/*.json',
                 'src/*/resources/**/*.toml'
         trimTrailingWhitespace()
         leadingTabsToSpaces(4)

@@ -8,6 +8,8 @@ name: Release
 # did not happen.
 # The steps of Modrinth need the secret MODRINTH_TOKEN (scopes VERSION_CREATE and PROJECT_WRITE). A fork skips these
 # steps. An error on the page of the project does not stop the release.
+# The workflow has one job for each step: build and test, GitHub Release, GitHub Packages, Modrinth and the
+# documentation site.
 # When the tag of the version exists, the workflow makes no release. To run it again after a failure, use
 # "Run workflow" on main.
 
@@ -69,15 +71,41 @@ jobs:
             echo "Release: \`${tag}\`." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  release:
-    name: Build and publish
+  build:
+    name: Build and test
     needs: version
     if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Build, unit tests and translation check
+        run: ./gradlew build -Pmod_version="$VERSION" --stacktrace
+
+      - name: GameTest server
+        run: ./gradlew runGameTestServer -Pmod_version="$VERSION" --stacktrace
+
+      - name: Upload the jars
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cartofold-mod
+          path: build/libs/cartofold-*.jar
+          if-no-files-found: error
+
+  github-release:
+    name: GitHub Release
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
-      packages: write
     env:
       COMMIT: ${{ needs.version.outputs.commit }}
       VERSION: ${{ needs.version.outputs.version }}
@@ -89,57 +117,97 @@ jobs:
           # The history and the tags, for the release notes.
           fetch-depth: 0
 
-      - name: Write the release notes
-        run: |
-          mkdir -p build
-          python3 scripts/version.py version --rev "$COMMIT" --repo "$GITHUB_REPOSITORY" --notes build/release-notes.md
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - name: Download the jars
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          distribution: temurin
-          java-version: '21'
+          name: cartofold-mod
+          path: build/libs
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Write the release notes
+        run: python3 scripts/version.py version --rev "$COMMIT" --repo "$GITHUB_REPOSITORY" --notes build/release-notes.md
 
-      - name: Build, unit tests and translation check
-        run: ./gradlew build -Pmod_version="$VERSION" --stacktrace
-
-      - name: GameTest server
-        run: ./gradlew runGameTestServer -Pmod_version="$VERSION" --stacktrace
+      - name: Upload the release notes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cartofold-release-notes
+          path: build/release-notes.md
+          if-no-files-found: error
 
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
-          shopt -s nullglob
-          files=( build/libs/cartofold-"${VERSION}".jar )
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No jar to release for the version ${VERSION}." >&2
-            exit 1
-          fi
-          gh release create "$TAG" "${files[@]}" \
+          gh release create "$TAG" "build/libs/cartofold-${VERSION}.jar" \
             --target "$COMMIT" \
             --title "Cartofold ${VERSION}" \
             --notes-file build/release-notes.md
 
+  github-packages:
+    name: GitHub Packages
+    needs: [version, github-release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
       - name: Publish to GitHub Packages
         run: ./gradlew publish -Pmod_version="$VERSION" --stacktrace
         env:
+          VERSION: ${{ needs.version.outputs.version }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  modrinth:
+    name: Modrinth
+    needs: [version, github-release]
+    if: github.repository_owner == 'nicolas-goyon'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download the jars
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cartofold-mod
+          path: build/libs
+
+      - name: Download the release notes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cartofold-release-notes
+          path: build
+
       - name: Publish to Modrinth
-        if: github.repository_owner == 'nicolas-goyon'
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: python3 scripts/modrinth.py publish --version "$VERSION" --notes build/release-notes.md
 
       - name: Update the page on Modrinth
-        if: github.repository_owner == 'nicolas-goyon'
         continue-on-error: true
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: python3 scripts/modrinth.py project --body docs/modrinth.md --icon src/main/resources/cartofold_logo.png
+
+  pages:
+    name: Documentation site
+    needs: github-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      # The workflow Pages runs on develop: GitHub Pages accepts a deployment from the default branch.
+      - name: Start the workflow Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref develop
