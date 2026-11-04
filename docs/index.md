@@ -6,10 +6,13 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 
 The name comes from *Kartoffel*: the German word for potato.
 
+[Download on Modrinth](https://modrinth.com/project/cartofold){ .md-button .md-button--primary }
+[Player guide](guide/install.md){ .md-button }
+
 ## Start here
 
 - **Players**: read the [player guide](guide/install.md).
-- **Mod developers**: read the [API guide](api.md).
+- **Mod developers**: read the [API guide](api.md), the [examples](api-examples.md) and the [reference](api-reference.md).
 - **Contributors**: read the [architecture](technical/architecture.md) and the [contribution guide](https://github.com/nicolas-goyon/Cartofold/blob/develop/CONTRIBUTING.md).
 - **New versions**: read the [release notes](release-notes.md).
 

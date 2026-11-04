@@ -42,6 +42,10 @@ markdown_extensions:
       permalink: true
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ['.']
+      check_paths: true
+      dedent_subsections: true
 
 nav:
   - Home: index.md
@@ -53,7 +57,19 @@ nav:
       - Keys and settings: guide/settings.md
   - Mod developers:
       - API guide: api.md
+      - API examples: api-examples.md
+      - API reference: api-reference.md
   - Technical:
       - Architecture: technical/architecture.md
       - Design: design.md
   - Release notes: release-notes.md
+  - Modrinth: https://modrinth.com/project/cartofold
+
+extra:
+  social:
+    - icon: simple/modrinth
+      link: https://modrinth.com/project/cartofold
+      name: Cartofold on Modrinth
+    - icon: fontawesome/brands/github
+      link: https://github.com/nicolas-goyon/Cartofold
+      name: Cartofold on GitHub
