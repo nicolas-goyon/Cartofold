@@ -22,6 +22,7 @@
 - `./gradlew spotlessApply`: fixes the format of the files.
 - `./gradlew runGameTestServer`: runs the in-game tests (GameTest) in a new world, then stops.
 - `./gradlew runClient` and `./gradlew runServer`: a client and a dedicated server with the mod.
+- `mkdocs serve`: shows the documentation site. Install `requirements-docs.txt` first. Each new page goes in `nav` of `mkdocs.yml`.
 - The pure logic (projection, colors, layers) has JUnit tests. The behavior in the game has GameTests.
 
 ## Versions and releases

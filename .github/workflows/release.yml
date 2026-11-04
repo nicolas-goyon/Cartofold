@@ -8,7 +8,8 @@ name: Release
 # did not happen.
 # The steps of Modrinth need the secret MODRINTH_TOKEN (scopes VERSION_CREATE and PROJECT_WRITE). A fork skips these
 # steps. An error on the page of the project does not stop the release.
-# The workflow has one job for each step: build and test, GitHub Release, GitHub Packages and Modrinth.
+# The workflow has one job for each step: build and test, GitHub Release, GitHub Packages, Modrinth and the
+# documentation site.
 # When the tag of the version exists, the workflow makes no release. To run it again after a failure, use
 # "Run workflow" on main.
 
@@ -196,3 +197,17 @@ jobs:
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: python3 scripts/modrinth.py project --body docs/modrinth.md --icon src/main/resources/cartofold_logo.png
+
+  pages:
+    name: Documentation site
+    needs: github-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      # The workflow Pages runs on develop: GitHub Pages accepts a deployment from the default branch.
+      - name: Start the workflow Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref develop

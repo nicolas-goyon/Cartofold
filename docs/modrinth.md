@@ -27,11 +27,11 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It needs no other mod. I
 
 Other mods add layers to all the maps (territories, routes, markers with a color and a click), show map frames in their own screens, open the map of the world at a position, and mark their blocks on the survey maps.
 
-The Maven of Modrinth gives the jar, the sources jar and the Javadoc jar with no token. The API is in [docs/api.md](https://github.com/nicolas-goyon/Cartofold/blob/develop/docs/api.md).
+The Maven of Modrinth gives the jar, the sources jar and the Javadoc jar with no token. Read the [API guide](https://nicolas-goyon.github.io/Cartofold/api/).
 
 ## Versions
 
 - **Release**: the stable versions.
 - **Alpha**: a build of each change of the branch `develop`. The version has the form `0.23.4-dev.abc1234`. Do not use an alpha in a world that you want to keep.
 
-The source code is on [GitHub](https://github.com/nicolas-goyon/Cartofold), under the MIT license.
+The [documentation](https://nicolas-goyon.github.io/Cartofold/) has the player guide, the API and the release notes. The source code is on [GitHub](https://github.com/nicolas-goyon/Cartofold), under the MIT license.
