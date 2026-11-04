@@ -17,6 +17,7 @@ class ModrinthTest(unittest.TestCase):
         self.assertEqual("file0", data["primary_file"])
         self.assertEqual(["1.21.1"], data["game_versions"])
         self.assertEqual(["neoforge"], data["loaders"])
+        self.assertEqual("client_and_server", data["environment"])
         self.assertEqual("Cartofold 1.2.3", data["name"])
 
     def test_dev_build_is_an_alpha_that_is_not_featured(self):
