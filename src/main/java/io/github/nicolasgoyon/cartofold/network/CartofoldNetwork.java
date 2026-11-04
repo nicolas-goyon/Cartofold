@@ -16,7 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  */
 public final class CartofoldNetwork {
     /** The version of the payloads. Increase it when a payload changes. */
-    public static final String VERSION = "1";
+    public static final String VERSION = "4";
 
     private CartofoldNetwork() {
     }
@@ -33,6 +33,8 @@ public final class CartofoldNetwork {
                 (payload, context) -> ClientWaypoints.get().set(payload.waypoints()));
         registrar.playToClient(LayerPayload.TYPE, LayerPayload.STREAM_CODEC,
                 (payload, context) -> ClientLayers.get().set(payload.content()));
+        registrar.playToClient(LayerUpdatePayload.TYPE, LayerUpdatePayload.STREAM_CODEC,
+                (payload, context) -> ClientLayers.get().update(payload.layer(), payload.update()));
         registrar.playToClient(LayerRemovePayload.TYPE, LayerRemovePayload.STREAM_CODEC,
                 (payload, context) -> ClientLayers.get().remove(payload.layer()));
         registrar.playToClient(SurveyMapPayload.TYPE, SurveyMapPayload.STREAM_CODEC,

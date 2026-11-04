@@ -43,12 +43,13 @@ public final class ExplorationRequests {
     @Nullable
     private static ResourceKey<Level> lastDimension;
     private static List<ExplorationRequestPayload.SliceRegions> lastSlices = List.of();
+    private static boolean lastAll;
     private static int ticks;
     /** The regions of the open views, by view. */
     private static final Map<Object, View> VIEWS = new HashMap<>();
 
     /** The regions of a view, with the time of the last update. */
-    private record View(ExplorationKey key, List<RegionPos> regions, long time) {
+    private record View(ExplorationKey key, List<RegionPos> regions, boolean all, long time) {
     }
 
     private ExplorationRequests() {
@@ -87,7 +88,19 @@ public final class ExplorationRequests {
      * @param regions the regions of the view
      */
     public static void view(Object owner, ExplorationKey key, List<RegionPos> regions) {
-        VIEWS.put(owner, new View(key, List.copyOf(regions), Util.getMillis()));
+        view(owner, key, regions, false);
+    }
+
+    /**
+     * Sets the regions of a slice that a view shows (see {@link #view(Object, ResourceKey, List)}).
+     *
+     * @param owner   the view
+     * @param key     the dimension and the slice of the view
+     * @param regions the regions of the view
+     * @param all     true to ask for all the chunks with a sample. The server accepts this request only from an operator.
+     */
+    public static void view(Object owner, ExplorationKey key, List<RegionPos> regions, boolean all) {
+        VIEWS.put(owner, new View(key, List.copyOf(regions), all, Util.getMillis()));
     }
 
     /** Removes the regions of a view, when the view closes. */
@@ -131,10 +144,12 @@ public final class ExplorationRequests {
             slices.add(new ExplorationRequestPayload.SliceRegions(entry.getKey(), regions));
             requested.put(new ExplorationKey(dimension, entry.getKey()), regions);
         }
-        if (!dimension.equals(lastDimension) || !slices.equals(lastSlices)) {
+        boolean all = VIEWS.values().stream().anyMatch(view -> view.all() && view.key().dimension().equals(dimension));
+        if (!dimension.equals(lastDimension) || !slices.equals(lastSlices) || all != lastAll) {
             lastDimension = dimension;
             lastSlices = slices;
-            PacketDistributor.sendToServer(new ExplorationRequestPayload(dimension, slices));
+            lastAll = all;
+            PacketDistributor.sendToServer(new ExplorationRequestPayload(dimension, slices, all));
             ClientExploration.get().retain(requested);
         }
     }
@@ -143,6 +158,7 @@ public final class ExplorationRequests {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         lastDimension = null;
         lastSlices = List.of();
+        lastAll = false;
         VIEWS.clear();
         ClientExploration.get().clear();
         ClientWaypoints.get().set(List.of());

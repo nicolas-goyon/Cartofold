@@ -1,10 +1,12 @@
 package io.github.nicolasgoyon.cartofold.server;
 
 import io.github.nicolasgoyon.cartofold.api.LayerContent;
+import io.github.nicolasgoyon.cartofold.api.LayerUpdate;
 import io.github.nicolasgoyon.cartofold.api.MapMarker;
 import io.github.nicolasgoyon.cartofold.api.MarkerClickEvent;
 import io.github.nicolasgoyon.cartofold.network.LayerPayload;
 import io.github.nicolasgoyon.cartofold.network.LayerRemovePayload;
+import io.github.nicolasgoyon.cartofold.network.LayerUpdatePayload;
 import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -85,6 +87,24 @@ public final class LayerService {
         server.getPlayerList().getPlayers().forEach(player -> send(player, content));
     }
 
+    /** Changes some elements of a layer for all the players that have this layer. */
+    public void updateGlobal(ResourceLocation layer, LayerUpdate update) {
+        LayerContent content = global.get(layer);
+        if (content == null) {
+            return;
+        }
+        LayerContent next = content.apply(update);
+        global.put(layer, next);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Map<ResourceLocation, LayerContent> layers = players.get(player.getUUID());
+            // A layer of one player replaces the layer for all the players: it does not get the change.
+            if (layers != null && layers.get(layer) == content) {
+                layers.put(layer, next);
+                distribute(player, new LayerUpdatePayload(layer, update));
+            }
+        }
+    }
+
     /** Removes a layer for all the players. */
     public void removeGlobal(ResourceLocation layer) {
         if (global.remove(layer) != null) {
@@ -96,6 +116,16 @@ public final class LayerService {
     public void send(ServerPlayer player, LayerContent content) {
         players.computeIfAbsent(player.getUUID(), key -> new HashMap<>()).put(content.info().id(), content);
         distribute(player, new LayerPayload(content));
+    }
+
+    /** Changes some elements of a layer for one player. */
+    public void update(ServerPlayer player, ResourceLocation layer, LayerUpdate update) {
+        Map<ResourceLocation, LayerContent> layers = players.get(player.getUUID());
+        LayerContent content = layers == null ? null : layers.get(layer);
+        if (content != null) {
+            layers.put(layer, content.apply(update));
+            distribute(player, new LayerUpdatePayload(layer, update));
+        }
     }
 
     /** Removes a layer for one player. */

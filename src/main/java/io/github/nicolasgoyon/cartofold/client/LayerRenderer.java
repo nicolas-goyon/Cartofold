@@ -14,6 +14,7 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.LayerGeometry;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
+import io.github.nicolasgoyon.cartofold.waypoint.BannerMark;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,17 +22,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
+import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
 
-/** Draws the layers in the map views, and finds the marker under the mouse. */
+/** Draws the layers in the map views, and finds the marker and the area under the mouse. */
 public final class LayerRenderer {
     /** The width of the border of an area, in units of the screen. */
     private static final float BORDER_WIDTH = 1.5f;
@@ -45,10 +46,17 @@ public final class LayerRenderer {
 
     /** A marker of a layer. */
     public record Hit(ResourceLocation layer, MapMarker marker) {
+        /** The key of the marker in the names of a map. */
+        public MapLabels.Key key() {
+            return new MapLabels.Key(layer, marker.id());
+        }
     }
 
     /** True if the player shows the layer in this kind of view. */
     public static boolean visible(LayerInfo info, MapViewKind kind) {
+        if (info.id().equals(BannerMark.LAYER) && !CartofoldClientConfig.BANNER_VIEWS.get().shows(kind)) {
+            return false;
+        }
         return info.views().contains(kind) && !CartofoldClientConfig.HIDDEN_LAYERS.get().contains(info.id()
                 .toString());
     }
@@ -57,9 +65,10 @@ public final class LayerRenderer {
      * Draws the visible layers of a dimension, in their order.
      *
      * @param layers the layers to draw, among the visible layers
+     * @param labels the names of the markers, or null for a view with no names
      */
     public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
-            MapViewKind kind, Predicate<ResourceLocation> layers) {
+            MapViewKind kind, Predicate<ResourceLocation> layers, @Nullable MapLabels labels) {
         record Entry(int order, Runnable draw) {
         }
         List<Entry> entries = new ArrayList<>();
@@ -68,7 +77,7 @@ public final class LayerRenderer {
         for (LayerContent content : ClientLayers.get().contents()) {
             if (visible(content.info(), kind) && layers.test(content.info().id())) {
                 entries.add(new Entry(content.info().order(),
-                        () -> drawContent(graphics, content, dimension, projection, kind, explored)));
+                        () -> drawContent(graphics, content, dimension, projection, labels, explored)));
             }
         }
         for (MapLayerRenderer renderer : ClientLayers.get().renderers()) {
@@ -101,7 +110,7 @@ public final class LayerRenderer {
     }
 
     private static void drawContent(GuiGraphics graphics, LayerContent content, ResourceKey<Level> dimension,
-            MapProjection projection, MapViewKind kind, Explored explored) {
+            MapProjection projection, @Nullable MapLabels labels, Explored explored) {
         boolean onlyExplored = content.info().onlyExplored();
         double[] bounds = projection.blockBounds();
         Matrix4f matrix = graphics.pose().last().pose();
@@ -151,22 +160,28 @@ public final class LayerRenderer {
             }
         }
         MapShapes.draw(buffer);
-        Font font = Minecraft.getInstance().font;
-        boolean names = kind == MapViewKind.WORLD_MAP || kind == MapViewKind.FRAME;
         for (MapMarker marker : content.markers()) {
             if (!marker.dimension().equals(dimension) || (onlyExplored && !explored.block(marker.pos()))) {
                 continue;
             }
             double[] point = projection.toScreen(marker.pos().getX() + 0.5, marker.pos().getZ() + 0.5);
+            if (labels != null && labels.selected(content.info().id(), marker.id())) {
+                MapShapes.drawSelection(graphics, (float) point[0], (float) point[1]);
+            }
             if (marker.icon().isPresent()) {
+                if (marker.tinted()) {
+                    graphics.setColor(((marker.color() >> 16) & 0xFF) / 255f, ((marker.color() >> 8) & 0xFF) / 255f,
+                            (marker.color() & 0xFF) / 255f, 1);
+                }
                 graphics.blit(marker.icon().get(), (int) Math.round(point[0]) - ICON_SIZE / 2,
                         (int) Math.round(point[1]) - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1, 1, 1);
+                graphics.setColor(1, 1, 1, 1);
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
-            if (names) {
-                graphics.drawCenteredString(font, marker.name(), (int) Math.round(point[0]),
-                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2, 0xFFFFFFFF);
+            if (labels != null && projection.contains(point[0], point[1])) {
+                labels.add(content.info().id(), marker.id(), marker.name(), (int) Math.round(point[0]),
+                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2);
             }
         }
     }
@@ -183,6 +198,17 @@ public final class LayerRenderer {
     /** The visible marker of the layers of a dimension at a point of the screen, or empty. */
     public static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        return markerAt(dimension, projection, kind, layers, screenX, screenY, marker -> true);
+    }
+
+    /** The visible clickable marker of the layers of a dimension at a point of the screen, or empty. */
+    public static Optional<Hit> clickableMarkerAt(ResourceKey<Level> dimension, MapProjection projection,
+            MapViewKind kind, Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        return markerAt(dimension, projection, kind, layers, screenX, screenY, MapMarker::clickable);
+    }
+
+    private static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY, Predicate<MapMarker> filter) {
         Hit best = null;
         double bestDistance = SELECT_DISTANCE;
         Explored explored = new Explored(dimension);
@@ -191,7 +217,7 @@ public final class LayerRenderer {
                 continue;
             }
             for (MapMarker marker : content.markers()) {
-                if (!marker.dimension().equals(dimension)
+                if (!filter.test(marker) || !marker.dimension().equals(dimension)
                         || (content.info().onlyExplored() && !explored.block(marker.pos()))) {
                     continue;
                 }
@@ -204,5 +230,47 @@ public final class LayerRenderer {
             }
         }
         return Optional.ofNullable(best);
+    }
+
+    /**
+     * The visible area with a tooltip of the layers of a dimension at a point of the screen, or empty. The area of the
+     * highest layer comes first. In a layer, the last area comes first.
+     */
+    public static Optional<ChunkArea> areaAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        double[] block = projection.toBlock(screenX, screenY);
+        int chunkX = (int) Math.floor(block[0]) >> 4;
+        int chunkZ = (int) Math.floor(block[1]) >> 4;
+        Explored explored = new Explored(dimension);
+        List<LayerContent> contents = ClientLayers.get().contents();
+        for (LayerContent content : contents.reversed()) {
+            if (!visible(content.info(), kind) || !layers.test(content.info().id())
+                    || (content.info().onlyExplored() && !explored.chunk(chunkX, chunkZ))) {
+                continue;
+            }
+            for (ChunkArea area : content.areas().reversed()) {
+                if (!area.tooltip().isEmpty() && area.dimension().equals(dimension)
+                        && area.contains(chunkX, chunkZ)) {
+                    return Optional.of(area);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The lines of the tooltip at a point of the screen: the tooltip of the marker, or the tooltip of the area.
+     *
+     * @return the lines, or an empty list
+     */
+    public static List<Component> tooltipAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
+            Predicate<ResourceLocation> layers, double screenX, double screenY) {
+        Optional<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
+                .flatMap(hit -> hit.marker().tooltip());
+        if (marker.isPresent()) {
+            return List.of(marker.get());
+        }
+        return areaAt(dimension, projection, kind, layers, screenX, screenY).map(ChunkArea::tooltip)
+                .orElse(List.of());
     }
 }

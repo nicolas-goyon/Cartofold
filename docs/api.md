@@ -6,30 +6,36 @@ The API is in the packages `io.github.nicolasgoyon.cartofold.api` (server and co
 
 ## Add Cartofold to a mod
 
-Each release puts the jar in GitHub Packages, with the sources jar and the Javadoc jar. GitHub Packages needs a GitHub token with the permission `read:packages`, also for a public package. In GitHub Actions, the `GITHUB_TOKEN` of the workflow can read the package when the workflow has `packages: read`.
+Each release puts the jar, the sources jar and the Javadoc jar on [Modrinth](https://modrinth.com/mod/cartofold). The Maven of Modrinth needs no account and no token. The jar is also a file of each GitHub Release.
 
 In `build.gradle` (ModDevGradle):
 
 ```groovy
 repositories {
-    maven {
-        name = 'Cartofold'
-        url = uri('https://maven.pkg.github.com/nicolas-goyon/cartofold')
-        credentials {
-            username = providers.environmentVariable('GITHUB_ACTOR').getOrElse('')
-            password = providers.environmentVariable('GITHUB_TOKEN').getOrElse('')
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = uri('https://api.modrinth.com/maven')
+            }
         }
-        content {
-            includeGroup 'io.github.nicolasgoyon.cartofold'
+        filter {
+            includeGroup 'maven.modrinth'
         }
     }
 }
 
 dependencies {
     // A required dependency: the mod and the dev runs have Cartofold.
-    implementation 'io.github.nicolasgoyon.cartofold:cartofold:0.4.0'
+    implementation 'maven.modrinth:cartofold:0.23.4'
 }
 ```
+
+Each release also puts the jar in GitHub Packages, with the group `io.github.nicolasgoyon.cartofold` and the artifact `cartofold`. GitHub Packages needs a GitHub token with the permission `read:packages`, also for a public package.
+
+Each push on `develop` also puts a dev build on Modrinth, in the channel `alpha`, for example `maven.modrinth:cartofold:0.23.4-dev.abc1234`. A dev build can change the API with no notice.
+
+A modpack of packwiz adds Cartofold with `packwiz modrinth add cartofold`.
 
 For an optional dependency, use `compileOnly` for the compilation, and `runtimeOnly` if the dev runs need Cartofold.
 
@@ -72,11 +78,58 @@ CartofoldLayers.setForAll(content);
 CartofoldLayers.set(player, content);
 ```
 
+An area can have a tooltip of one or more lines. The map of the world and the map frames show it when the mouse is above a chunk of the area. When a marker with a tooltip is also under the mouse, the map shows the tooltip of the marker.
+
+```java
+ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4000FF00, 0xFF00FF00,
+        Component.literal("North village"),
+        List.of(Component.literal("North village"), Component.literal("Red faction").withColor(0xFF4040)));
+```
+
 - `LayerInfo.order`: a layer with a higher order draws above the layers with a lower order. The waypoints of the player are above all the layers.
 - `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`).
-- `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored.
-- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most, and a line has 4096 points at most.
+- `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored. With `false`, the layer also shows on the background of a map frame.
+- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most and 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.
+
+### Changes of some elements
+
+A mod can change some elements of a layer, with no new copy of the layer. This is good for the markers that move often. The server sends only the change to the clients.
+
+```java
+MapMarker caravan = MapMarker.tinted("caravan_7", Level.OVERWORLD, pos, factionColor, MarkerShapes.DIAMOND,
+        Component.literal("Caravan"));
+
+// For the layer of setForAll.
+CartofoldLayers.updateForAll(id, LayerUpdate.marker(caravan));
+CartofoldLayers.updateForAll(id, LayerUpdate.removeMarker("caravan_7"));
+// For the layer of one player.
+CartofoldLayers.update(player, id, LayerUpdate.markers(caravans));
+```
+
+- An element with a new identifier goes into the layer. An element with the identifier of an element of the layer replaces it.
+- `LayerUpdate.area`, `removeArea`, `line` and `removeLine` change the areas and the lines. The constructor of `LayerUpdate` changes elements of all the kinds in one step.
+- A change of a layer that the server does not have does nothing. The limits of a layer stay the same.
+- A mod can also put the moving markers in a layer of their own, and send this layer only. The player then shows and hides the two layers one by one.
+
+### Names of the markers
+
+The map of the world and the map frames show the name of a marker under the marker. A name does not cover a name that the map already drew: the highest layers and the waypoints come first. The other markers show with no name. When the player zooms in, the hidden names show again. The selected marker and the marker under the mouse always show their names. A marker with an empty name shows no name.
+
+### Colors of the markers
+
+A marker with a tinted icon shows the same icon in many colors, with no texture for each color. The views multiply the pixels of the icon by the color of the marker: a white pixel takes the color, and a dark outline stays dark.
+
+```java
+// A shape of Cartofold: SQUARE, RING, CROSS, DIAMOND or DOT.
+MapMarker village = MapMarker.tinted("north_village", Level.OVERWORLD, pos, factionColor, MarkerShapes.SQUARE,
+        Component.literal("North village"));
+// A white icon of the mod.
+ResourceLocation icon = ResourceLocation.fromNamespaceAndPath("mymod", "textures/map/ruin.png");
+MapMarker ruin = MapMarker.tinted("old_ruin", Level.OVERWORLD, pos, factionColor, icon, Component.literal("Ruin"));
+```
+
+The last argument of the constructor of `MapMarker` also selects a tinted icon. The icon has the same size in the minimap, the map of the world and the map frames. On a paper map, it has the size of an icon of a vanilla map.
 
 ### Clicks on markers
 
@@ -129,6 +182,20 @@ CartofoldClientLayers.register(new MapLayerRenderer() {
 });
 ```
 
+## Open the map of the world
+
+A screen of a mod opens the map of the world at a position with `CartofoldWorldMap`. The map stays at this position until the player moves it. Escape then shows the screen of the mod again.
+
+```java
+CartofoldWorldMap.at(Level.OVERWORLD, villageX, villageZ)
+        .scale(2) // optional: by default, the map keeps the scale of the last map
+        .parent(this) // optional: the screen to show when the player closes the map
+        .select(layer, "north_village") // optional: this marker shows as selected
+        .open();
+```
+
+The game calls `init()` of the screen of the mod again when the map closes: keep the state of the screen in its fields. The server sends the chunks of the dimension of the player only. In another dimension, the map shows the chunks that the client has, and the layers.
+
 ## Map frames
 
 `MapFrame` is a widget for the screens of the other mods. It shows the explored map, the layers with the kind `MapViewKind.FRAME`, the waypoints and the player.
@@ -146,7 +213,19 @@ protected void init() {
 
 - `followPlayer(true)` puts the player at the center until a move of the mouse.
 - `interactive(false)` stops the moves, the zoom and the clicks of the mouse.
-- `dimension(...)` shows another dimension than the dimension of the player.
+- `dimension(...)` shows another dimension than the dimension of the player. The server sends the chunks of the dimension of the player only: in another dimension, the frame shows the chunks that the client has, the background and the layers.
 - `projection()` gives the screen point of a block and the block of a screen point, for the draws of the screen above the frame.
+- `onMarkerClick((layer, marker) -> ...)` gets the clicks on the markers on the client, with no message to the server. It gets all the markers, also the markers that are not clickable.
+- `view()` gives the center and the scale at any time, and `view(view)` sets them. A screen keeps the view between two openings.
+- `center(...)` and `scale(...)` also work at any time, not only when the screen makes the frame.
+- `showBox(minX, minZ, maxX, maxZ)` selects the center and the scale that show all of a box of blocks.
+- `onViewChange(view -> ...)` gets the new view when the player moves or zooms the frame.
+- `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
+- `backgroundColor(color)` sets the color of the frame where the map has no chunk.
+- `background(context -> ...)` draws a background of the mod, below the chunks and below the layers. The context has the projection of the frame, as in a layer of the client. Use it for a relief that the mod calculates.
+- `allChunks(true)` shows the chunks that the other players explored, for a screen of an operator (permission level 2). For other players, the server sends only the explored chunks. The server has no map data for the chunks that no player explored: the background shows there. The client counts these chunks as explored until it frees their regions, also for the layers with `onlyExplored = true`.
+- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `clearSelection()` removes the selection.
 
-The client asks the server for the regions of each frame on the screen: the frame shows the chunks that the player explored, also far from the player.
+A click on a clickable marker also posts `MarkerClickEvent` on the server.
+
+The client asks the server for the regions of each frame on the screen: in the dimension of the player, the frame shows the chunks that the player explored, also far from the player.

@@ -7,6 +7,7 @@ import io.github.nicolasgoyon.cartofold.api.LayerContent;
 import io.github.nicolasgoyon.cartofold.api.LayerInfo;
 import io.github.nicolasgoyon.cartofold.api.MapLine;
 import io.github.nicolasgoyon.cartofold.api.MapMarker;
+import io.github.nicolasgoyon.cartofold.api.MarkerShapes;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -42,6 +43,17 @@ class PaperOverlayTest {
     /** The ABGR of an ARGB color. */
     private static int abgr(int argb) {
         return (argb & 0xFF00FF00) | ((argb >> 16) & 0xFF) | ((argb & 0xFF) << 16);
+    }
+
+    @Test
+    void markerWithAnIconDrawsNoCross() {
+        MapMarker marker = MapMarker.tinted("m", OVERWORLD, new BlockPos(20, 64, 20), 0xFF0000, MarkerShapes.RING,
+                Component.literal("M"));
+
+        int[] pixels = PaperOverlay.render(GEOMETRY, OVERWORLD, explored(), List.of(layer(List.of(), List.of(),
+                List.of(marker))));
+
+        assertEquals(0, pixels[21 + 20 * 128]);
     }
 
     @Test

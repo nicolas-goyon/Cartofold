@@ -11,6 +11,7 @@ import io.github.nicolasgoyon.cartofold.tile.TileImage;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import java.util.Optional;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceKey;
@@ -50,7 +51,7 @@ public final class MapView {
      */
     public static void render(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
             MapViewKind kind, Predicate<ResourceLocation> layers) {
-        render(graphics, ExplorationKey.surface(dimension), projection, kind, layers);
+        render(graphics, ExplorationKey.surface(dimension), projection, kind, layers, null);
     }
 
     /**
@@ -62,9 +63,11 @@ public final class MapView {
      * @param projection the projection of the view
      * @param kind       the kind of the view, for the visibility of the layers
      * @param layers     the layers to draw, among the visible layers
+     * @param labels     the names of the markers, or null for a view with no names. The view adds the names to it, and
+     *                   the caller draws them above its own draws.
      */
     public static void render(GuiGraphics graphics, ExplorationKey slice, MapProjection projection,
-            MapViewKind kind, Predicate<ResourceLocation> layers) {
+            MapViewKind kind, Predicate<ResourceLocation> layers, @Nullable MapLabels labels) {
         ResourceKey<Level> dimension = slice.dimension();
         int lod = projection.lod(Minecraft.getInstance().getWindow().getGuiScale());
         int size = TileImage.size(lod);
@@ -91,7 +94,7 @@ public final class MapView {
         }
         pose.popPose();
         graphics.flush();
-        LayerRenderer.render(graphics, dimension, projection, kind, layers);
+        LayerRenderer.render(graphics, dimension, projection, kind, layers, labels);
         graphics.flush();
         RenderSystem.disableBlend();
         graphics.disableScissor();

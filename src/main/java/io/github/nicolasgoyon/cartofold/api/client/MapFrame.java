@@ -3,6 +3,7 @@ package io.github.nicolasgoyon.cartofold.api.client;
 import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.client.ExplorationRequests;
 import io.github.nicolasgoyon.cartofold.client.LayerRenderer;
+import io.github.nicolasgoyon.cartofold.client.MapLabels;
 import io.github.nicolasgoyon.cartofold.client.MapShapes;
 import io.github.nicolasgoyon.cartofold.client.MapView;
 import io.github.nicolasgoyon.cartofold.client.WaypointMarkers;
@@ -13,6 +14,7 @@ import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
@@ -40,11 +42,38 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <p>The frame shows the layers with the kind {@link MapViewKind#FRAME}. When the frame is interactive, the mouse moves
  * the map, the wheel changes the zoom, and a click on a clickable marker sends a
- * {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} on the server.
+ * {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} on the server. The screen can also get the clicks on
+ * the client, with no message to the server (see {@link #onMarkerClick} and {@link #onEmptyClick}).
  */
 public class MapFrame extends AbstractWidget {
     private static final int BACKGROUND = 0xFF101010;
     private static final int BORDER = 0xFF404040;
+    /** A press and a release with a larger move than this distance, in units of the screen, are a drag. */
+    private static final double CLICK_DISTANCE = 2;
+    /** The free space around a box of {@link #showBox}, in units of the screen. */
+    private static final double BOX_MARGIN = 8;
+
+    /**
+     * The view of a frame. A screen can keep it and give it again to a new frame.
+     *
+     * @param centerX the X of the block at the center
+     * @param centerZ the Z of the block at the center
+     * @param scale   the number of units of the screen for one block
+     */
+    public record View(double centerX, double centerZ, double scale) {
+    }
+
+    /** Gets the clicks on the markers of a frame, on the client. */
+    @FunctionalInterface
+    public interface MarkerClickListener {
+        /**
+         * The player clicked a marker.
+         *
+         * @param layer  the identifier of the layer of the marker
+         * @param marker the identifier of the marker in its layer
+         */
+        void clicked(ResourceLocation layer, String marker);
+    }
 
     private final WorldMapState state;
     @Nullable
@@ -54,7 +83,19 @@ public class MapFrame extends AbstractWidget {
     private boolean showPlayer = true;
     private boolean showWaypoints = true;
     private boolean followPlayer;
+    private boolean allChunks;
+    private int backgroundColor = BACKGROUND;
+    @Nullable
+    private Consumer<LayerRenderContext> background;
     private MapSlice slice = MapSlice.SURFACE;
+    private MarkerClickListener markerClick = (layer, marker) -> { };
+    private Runnable emptyClick = () -> { };
+    private Consumer<View> viewChange = view -> { };
+    @Nullable
+    private MapLabels.Key selected;
+    private boolean pressed;
+    private double pressX;
+    private double pressY;
 
     /** Makes a frame centered on the player, at one unit of the screen for one block. */
     public MapFrame(int x, int y, int width, int height) {
@@ -92,6 +133,35 @@ public class MapFrame extends AbstractWidget {
         return this;
     }
 
+    /**
+     * Sets the color of the frame where the map has no chunk.
+     *
+     * @param color the color, in ARGB
+     */
+    public MapFrame backgroundColor(int color) {
+        this.backgroundColor = color;
+        return this;
+    }
+
+    /**
+     * Sets a function that draws the background of the frame, below the chunks and below the layers. The frame calls it
+     * in each draw, with a scissor on the frame. The context has the projection of the frame.
+     */
+    public MapFrame background(Consumer<LayerRenderContext> renderer) {
+        this.background = renderer;
+        return this;
+    }
+
+    /**
+     * Shows all the chunks with a sample, also the chunks that the player did not explore. The server accepts this
+     * request only from an operator (permission level 2): for other players, the frame shows the explored chunks. The
+     * chunks that no player explored have no sample: the background shows there.
+     */
+    public MapFrame allChunks(boolean all) {
+        this.allChunks = all;
+        return this;
+    }
+
     /** Shows only the layers that the filter accepts, among the layers that the player shows. */
     public MapFrame layers(Predicate<ResourceLocation> filter) {
         this.layers = filter;
@@ -122,6 +192,72 @@ public class MapFrame extends AbstractWidget {
         return this;
     }
 
+    /**
+     * Sets the function that gets the clicks on the markers of the frame, on the client. It gets the clicks on all the
+     * markers, also on the markers that are not clickable. The frame calls it when the player releases the mouse, and
+     * not after a drag of the map.
+     */
+    public MapFrame onMarkerClick(MarkerClickListener listener) {
+        this.markerClick = listener;
+        return this;
+    }
+
+    /** The center and the scale of the frame now. */
+    public View view() {
+        return new View(state.centerX(), state.centerZ(), state.scale());
+    }
+
+    /** Sets the center and the scale. The frame stops to follow the player. */
+    public MapFrame view(View view) {
+        state.set(view.centerX(), view.centerZ(), view.scale());
+        followPlayer = false;
+        return this;
+    }
+
+    /**
+     * Selects the center and the scale that show all of a box of blocks. The scale stays between
+     * {@link WorldMapState#MIN_SCALE} and {@link WorldMapState#MAX_SCALE}. The frame stops to follow the player.
+     *
+     * @param minX the smallest X of the box
+     * @param minZ the smallest Z of the box
+     * @param maxX the largest X of the box
+     * @param maxZ the largest Z of the box
+     */
+    public MapFrame showBox(double minX, double minZ, double maxX, double maxZ) {
+        state.fit(minX, minZ, maxX, maxZ, width, height, BOX_MARGIN);
+        followPlayer = false;
+        return this;
+    }
+
+    /** Sets the function that gets the view of the frame when the player moves or zooms the frame. */
+    public MapFrame onViewChange(Consumer<View> listener) {
+        this.viewChange = listener;
+        return this;
+    }
+
+    /** Sets the function that gets the clicks that hit no marker, on the client (see {@link #onMarkerClick}). */
+    public MapFrame onEmptyClick(Runnable listener) {
+        this.emptyClick = listener;
+        return this;
+    }
+
+    /**
+     * Shows a marker as selected: the marker has a mark, and its name always shows.
+     *
+     * @param layer  the identifier of the layer of the marker
+     * @param marker the identifier of the marker in its layer
+     */
+    public MapFrame select(ResourceLocation layer, String marker) {
+        this.selected = new MapLabels.Key(layer, marker);
+        return this;
+    }
+
+    /** Shows no marker as selected. */
+    public MapFrame clearSelection() {
+        this.selected = null;
+        return this;
+    }
+
     /** The projection of the frame: the screen point of a block and the block of a screen point. */
     public MapProjection projection() {
         return state.projection(getX(), getY(), width, height);
@@ -146,15 +282,24 @@ public class MapFrame extends AbstractWidget {
         }
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(shown, slice);
-        ExplorationRequests.view(this, key, projection.regions());
+        ExplorationRequests.view(this, key, projection.regions(), allChunks);
         graphics.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, BORDER);
-        graphics.fill(getX(), getY(), getX() + width, getY() + height, BACKGROUND);
+        graphics.fill(getX(), getY(), getX() + width, getY() + height, backgroundColor);
+        if (background != null) {
+            graphics.enableScissor(getX(), getY(), getX() + width, getY() + height);
+            background.accept(new LayerRenderContext(graphics, projection, shown, MapViewKind.FRAME));
+            graphics.flush();
+            graphics.disableScissor();
+        }
         graphics.flush();
-        MapView.render(graphics, key, projection, MapViewKind.FRAME, layers);
+        MapLabels labels = new MapLabels(isHovered() ? markerAt(mouseX, mouseY).map(LayerRenderer.Hit::key)
+                .orElse(null) : null, selected);
+        MapView.render(graphics, key, projection, MapViewKind.FRAME, layers, labels);
         graphics.enableScissor(getX(), getY(), getX() + width, getY() + height);
         if (showWaypoints) {
-            WaypointMarkers.renderWorldMap(graphics, Minecraft.getInstance().font, shown, projection, true);
+            WaypointMarkers.renderWorldMap(graphics, shown, projection, labels, mouseX, mouseY);
         }
+        labels.draw(graphics, Minecraft.getInstance().font);
         if (showPlayer && player.level().dimension().equals(shown)) {
             double[] point = projection.toScreen(player.getX(), player.getZ());
             MapShapes.drawArrow(graphics, (float) point[0], (float) point[1],
@@ -162,8 +307,8 @@ public class MapFrame extends AbstractWidget {
         }
         graphics.disableScissor();
         if (isHovered()) {
-            markerAt(mouseX, mouseY).flatMap(hit -> hit.marker().tooltip()).ifPresent(tooltip -> graphics
-                    .renderTooltip(Minecraft.getInstance().font, tooltip, mouseX, mouseY));
+            graphics.renderComponentTooltip(Minecraft.getInstance().font, LayerRenderer.tooltipAt(shown, projection,
+                    MapViewKind.FRAME, layers, mouseX, mouseY), mouseX, mouseY);
         }
     }
 
@@ -178,15 +323,33 @@ public class MapFrame extends AbstractWidget {
         if (!interactive) {
             return;
         }
-        markerAt(mouseX, mouseY).filter(hit -> hit.marker().clickable()).ifPresent(hit -> PacketDistributor
-                .sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
+        pressed = true;
+        pressX = mouseX;
+        pressY = mouseY;
+        ResourceKey<Level> shown = shownDimension();
+        if (shown != null) {
+            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
+                    hit -> PacketDistributor.sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
+        }
+    }
+
+    @Override
+    public void onRelease(double mouseX, double mouseY) {
+        boolean click = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
+        pressed = false;
+        if (click) {
+            markerAt(mouseX, mouseY).ifPresentOrElse(hit -> markerClick.clicked(hit.layer(), hit.marker().id()),
+                    emptyClick);
+        }
     }
 
     @Override
     protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
         if (interactive) {
+            pressed = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
             state.drag(dragX, dragY);
             followPlayer = false;
+            viewChange.accept(view());
         }
     }
 
@@ -196,6 +359,7 @@ public class MapFrame extends AbstractWidget {
             return false;
         }
         state.zoom(projection(), mouseX, mouseY, scrollY);
+        viewChange.accept(view());
         return true;
     }
 

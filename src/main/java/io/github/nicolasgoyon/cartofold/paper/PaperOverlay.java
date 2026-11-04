@@ -18,7 +18,8 @@ import net.minecraft.world.level.Level;
  * <ul>
  *   <li>An area fills its pixels, and draws its border on the pixels next to a pixel out of the area.</li>
  *   <li>A line draws one pixel of width.</li>
- *   <li>A marker draws a small cross of its color, and a dark middle.</li>
+ *   <li>A marker with no icon draws a small cross of its color, and a dark middle. The renderer of the map draws the
+ *       markers with an icon.</li>
  * </ul>
  *
  * <p>The pixels are in the ABGR format of {@code NativeImage}, at the index {@code x + z * 128}. A pixel with no layer is
@@ -64,7 +65,7 @@ public final class PaperOverlay {
                 }
             }
             for (MapMarker marker : layer.markers()) {
-                if (marker.dimension().equals(dimension)) {
+                if (marker.dimension().equals(dimension) && marker.icon().isEmpty()) {
                     drawMarker(argb, marker, geometry, colors);
                 }
             }

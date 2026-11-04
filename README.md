@@ -1,3 +1,5 @@
+<img src="src/main/resources/cartofold_logo.png" alt="The logo of Cartofold: a map in the shape of a potato" width="128">
+
 # Cartofold
 
 Cartofold is a map mod for Minecraft (NeoForge 1.21.1). It gives one map engine to all the maps of the game:
@@ -14,6 +16,7 @@ The mod does not depend on other mods. It is necessary on the server and on the 
 - **Minimap**: square or round, five zoom levels, the north, the arrow of the player and the coordinates. It turns with the player or keeps the north at the top.
 - **Map of the world**: move, zoom around the mouse, center on the player, the coordinates under the mouse.
 - **Caves**: in a cave, the minimap and the map of the world show the caves at the height of the player, in bands of 16 blocks. Page Up and Page Down select a band on the map of the world.
+- **Banners**: a banner that a player marks on a vanilla map or on a survey map also shows on the minimap and on the map of the world of this player. A setting selects the views, and the "Layers" button hides the markers.
 - **Waypoints of the player**: a name, a color and a position, on the minimap and on the map of the world. A death adds a waypoint.
 - **Survey maps**: paper maps of their own (the vanilla maps stay vanilla), with the layers of the other mods. A spyglass in the inventory explores farther. The cartography table zooms, copies, locks, moves and updates them. Banners, lodestones and the blocks of other mods mark them.
 - **API**: layers (areas of chunks, lines, markers with a click), map frames for the screens of other mods, and blocks that mark the paper maps.
@@ -34,7 +37,7 @@ The settings screen opens from the list of the mods and from the map of the worl
 
 ## API
 
-Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release puts the jar in GitHub Packages.
+Other mods add layers to all the maps and show map frames in their own screens. See [docs/api.md](docs/api.md). Each release goes to [Modrinth](https://modrinth.com/mod/cartofold) and to GitHub Packages.
 
 ## Development
 

@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold.client;
 
+import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +21,25 @@ public final class CartofoldClientConfig {
         }
     }
 
+    /** The views that show the markers of the banners. */
+    public enum BannerViews implements TranslatableEnum {
+        MINIMAP,
+        WORLD_MAP,
+        BOTH;
+
+        /** True if a kind of view shows the markers of the banners. */
+        public boolean shows(MapViewKind kind) {
+            return this == BOTH || (this == MINIMAP && kind == MapViewKind.MINIMAP)
+                    || (this == WORLD_MAP && kind == MapViewKind.WORLD_MAP);
+        }
+
+        @Override
+        public Component getTranslatedName() {
+            return Component.translatable("cartofold.configuration.layers.banner_views." + name().toLowerCase(
+                    Locale.ROOT));
+        }
+    }
+
     public static final ModConfigSpec SPEC;
     public static final ModConfigSpec.BooleanValue MINIMAP;
     public static final ModConfigSpec.EnumValue<Shape> MINIMAP_SHAPE;
@@ -33,6 +53,7 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINTS;
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINT_NAMES;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> HIDDEN_LAYERS;
+    public static final ModConfigSpec.EnumValue<BannerViews> BANNER_VIEWS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -68,6 +89,9 @@ public final class CartofoldClientConfig {
         HIDDEN_LAYERS = builder.comment("The identifiers of the layers that the views do not show.")
                 .translation("cartofold.configuration.layers.hidden")
                 .defineListAllowEmpty("hidden", List.of(), () -> "", value -> value instanceof String);
+        BANNER_VIEWS = builder.comment("The views that show the markers of the banners.")
+                .translation("cartofold.configuration.layers.banner_views")
+                .defineEnum("bannerViews", BannerViews.BOTH);
         builder.pop();
         SPEC = builder.build();
     }

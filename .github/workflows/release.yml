@@ -2,9 +2,12 @@ name: Release
 
 # A merge of develop into main makes a release. The version comes from the bump markers of the commits (see
 # scripts/version.py). The workflow tags the commit of develop, creates a GitHub Release with the jar and the release
-# notes, then publishes the jar to GitHub Packages (Maven), for the mods that use the API of Cartofold. The release
-# comes first: a Maven version is immutable, so a failed release step can run again only when the publication did not
-# happen.
+# notes, publishes the jar to GitHub Packages (Maven), then publishes the jar, the sources jar and the Javadoc jar to
+# Modrinth. The Maven of Modrinth gives these files with no token, for the mods that use the API of Cartofold. The
+# release comes first: a Maven version is immutable, so a failed release step can run again only when the publication
+# did not happen.
+# The steps of Modrinth need the secret MODRINTH_TOKEN (scopes VERSION_CREATE and PROJECT_WRITE). A fork skips these
+# steps. An error on the page of the project does not stop the release.
 # When the tag of the version exists, the workflow makes no release. To run it again after a failure, use
 # "Run workflow" on main.
 
@@ -98,7 +101,7 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Build, unit tests and translation check
         run: ./gradlew build -Pmod_version="$VERSION" --stacktrace
@@ -127,3 +130,16 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Modrinth
+        if: github.repository_owner == 'nicolas-goyon'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 scripts/modrinth.py publish --version "$VERSION" --notes build/release-notes.md
+
+      - name: Update the page on Modrinth
+        if: github.repository_owner == 'nicolas-goyon'
+        continue-on-error: true
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 scripts/modrinth.py project --body docs/modrinth.md --icon src/main/resources/cartofold_logo.png

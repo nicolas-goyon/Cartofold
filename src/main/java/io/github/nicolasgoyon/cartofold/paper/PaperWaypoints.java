@@ -1,6 +1,8 @@
 package io.github.nicolasgoyon.cartofold.paper;
 
+import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.api.PaperMarkerSource;
+import io.github.nicolasgoyon.cartofold.server.BannerService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +74,9 @@ public final class PaperWaypoints {
         boolean removed = data.removeMarker(key(pos));
         if (!removed) {
             data.putMarker(marker(pos, source.get().id(), marker.get()));
+        }
+        if (source.get().id().equals(Cartofold.BANNER_SOURCE)) {
+            BannerService.get().ifPresent(service -> service.mark(player, level, pos, !removed));
         }
         Component name = marker.get().name().getString().isEmpty() ? level.getBlockState(pos).getBlock().getName()
                 : marker.get().name();

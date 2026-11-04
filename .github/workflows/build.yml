@@ -5,6 +5,7 @@ name: Build
 # - pull request: the version after the merge, then "-pr.", the number and the short commit. Example:
 #   0.2.1-pr.12.abc1234.
 # - push on main: the version of the release.
+# Each build of develop also goes to Modrinth as an alpha. A fork skips this step.
 
 on:
   push:
@@ -67,7 +68,7 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Build, unit tests, format and translation checks
         env:
@@ -95,3 +96,12 @@ jobs:
             build/libs/cartofold-*.jar
             !build/libs/*-sources.jar
           if-no-files-found: error
+
+      - name: Publish the dev build to Modrinth
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.repository_owner == 'nicolas-goyon'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git log -1 --format='%s%n%n%b' > build/dev-notes.md
+          python3 scripts/modrinth.py publish --version "$VERSION" --notes build/dev-notes.md --type alpha
