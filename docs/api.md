@@ -2,7 +2,7 @@
 
 Other mods use the API of Cartofold to add layers to all the maps (the minimap, the map of the world, the map frames and the paper maps), to show map frames in their own screens, and to mark their blocks on the survey maps.
 
-This page is the guide. The [examples](api-examples.md) give complete code, and the [reference](api-reference.md) lists all the methods and their parameters.
+This page is the guide. The [examples](api-examples.md) give complete code, and the [reference](api-reference.md) and the [Javadoc](https://nicolas-goyon.github.io/Cartofold/javadoc/io/github/nicolasgoyon/cartofold/api/package-summary.html) list all the methods and their parameters.
 
 The API is in the packages `io.github.nicolasgoyon.cartofold.api` (server and common) and `io.github.nicolasgoyon.cartofold.api.client` (client). The class `io.github.nicolasgoyon.cartofold.view.MapProjection` is also part of the API. The other packages are not part of the API: they can change in a minor version. The Javadoc jar of each version has the documentation of the API.
 

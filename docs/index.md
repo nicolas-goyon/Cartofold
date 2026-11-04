@@ -12,7 +12,7 @@ The name comes from *Kartoffel*: the German word for potato.
 ## Start here
 
 - **Players**: read the [player guide](guide/install.md).
-- **Mod developers**: read the [API guide](api.md), the [examples](api-examples.md) and the [reference](api-reference.md).
+- **Mod developers**: read the [API guide](api.md), the [examples](api-examples.md), the [reference](api-reference.md) and the [Javadoc](https://nicolas-goyon.github.io/Cartofold/javadoc/io/github/nicolasgoyon/cartofold/api/package-summary.html).
 - **Contributors**: read the [architecture](technical/architecture.md) and the [contribution guide](https://github.com/nicolas-goyon/Cartofold/blob/develop/CONTRIBUTING.md).
 - **New versions**: read the [release notes](release-notes.md).
 

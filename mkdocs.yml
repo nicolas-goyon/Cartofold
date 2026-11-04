@@ -59,6 +59,7 @@ nav:
       - API guide: api.md
       - API examples: api-examples.md
       - API reference: api-reference.md
+      - Javadoc: https://nicolas-goyon.github.io/Cartofold/javadoc/io/github/nicolasgoyon/cartofold/api/package-summary.html
   - Technical:
       - Architecture: technical/architecture.md
       - Design: design.md
