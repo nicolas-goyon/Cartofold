@@ -119,6 +119,19 @@ public final class MapUpdates {
         return chunks.subList(0, Math.min(LIMIT, chunks.size()));
     }
 
+    /**
+     * The number of chunks in the area of a map. An update reads {@link #LIMIT} of them at most.
+     *
+     * @param map the geometry of the map
+     * @return the number of chunks
+     */
+    public static int chunkCount(PaperMapGeometry map) {
+        int last = MapMoves.SIZE - 1;
+        int columns = ((map.blockX(last) + map.factor() - 1) >> 4) - (map.blockX(0) >> 4) + 1;
+        int rows = ((map.blockZ(last) + map.factor() - 1) >> 4) - (map.blockZ(0) >> 4) + 1;
+        return columns * rows;
+    }
+
     /** True if all the pixels of a chunk are explored. */
     private static boolean explored(SurveyMapData data, ChunkPos chunk) {
         int[] range = pixels(data, chunk);

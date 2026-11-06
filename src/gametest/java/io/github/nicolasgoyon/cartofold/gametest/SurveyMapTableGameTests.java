@@ -10,6 +10,7 @@ import io.github.nicolasgoyon.cartofold.paper.SurveyMapId;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapItem;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +20,8 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.component.MapPostProcessing;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -121,6 +124,38 @@ public final class SurveyMapTableGameTests {
                 "The center moves half a map to the east: " + moved.centerX() + " " + moved.centerZ());
         helper.assertTrue(moved.scale() == data.scale(), "The scale stays");
         helper.assertTrue(moved.colors()[36 + 10 * MapMoves.SIZE] == 7, "The explored pixel keeps its place");
+        helper.succeed();
+    }
+
+    /** The same button again selects the zoom, and a locked map does not move. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void sameButtonAgainZoomsOut(GameTestHelper helper) {
+        ItemStack map = map(helper, 1);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.EAST);
+        table.menu().clickMenuButton(table.player(), MapMoves.EAST);
+        SurveyMapData zoomed = data(helper, table.take());
+        helper.assertTrue(zoomed.scale() == 2, "The second click selects the zoom: " + zoomed.scale());
+
+        ItemStack locked = Table.of(helper, map, Items.GLASS_PANE, MapMoves.NONE).take();
+        ItemStack moved = Table.of(helper, locked, Items.PAPER, MapMoves.NORTH).take();
+        helper.assertTrue(moved.isEmpty(), "A locked map does not move");
+        helper.succeed();
+    }
+
+    /** A vanilla map keeps the vanilla table: a paper zooms it out, and the buttons change nothing. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void vanillaMapKeepsTheVanillaTable(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(TABLE);
+        ItemStack map = MapItem.create(helper.getLevel(), pos.getX(), pos.getZ(), (byte) 0, false, false);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.EAST);
+        ItemStack result = table.menu().getSlot(2).getItem();
+        helper.assertTrue(result.is(Items.FILLED_MAP), "The result is a vanilla map");
+        helper.assertTrue(result.get(DataComponents.MAP_POST_PROCESSING) == MapPostProcessing.SCALE,
+                "The vanilla zoom stays with a selected button");
+        table.take();
+
+        ItemStack copies = Table.of(helper, map, Items.MAP, MapMoves.UPDATE).menu().getSlot(2).getItem();
+        helper.assertTrue(copies.is(Items.FILLED_MAP) && copies.getCount() == 2, "The vanilla copy stays");
         helper.succeed();
     }
 

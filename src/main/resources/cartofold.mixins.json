@@ -10,7 +10,6 @@
     "MapItemMixin"
   ],
   "client": [
-    "client.CartographyTableScreenMixin",
     "client.ItemInHandRendererMixin"
   ],
   "injectors": {

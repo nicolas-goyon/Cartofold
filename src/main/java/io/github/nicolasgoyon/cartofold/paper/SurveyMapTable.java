@@ -2,7 +2,7 @@ package io.github.nicolasgoyon.cartofold.paper;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 
 /**
  * The cartography table with a survey map, as the vanilla table with a vanilla map:
@@ -14,7 +14,8 @@ import net.minecraft.world.item.Items;
  *   <li>an empty survey map gives two maps with the same data.</li>
  * </ul>
  *
- * <p>A locked map does not zoom, move, update or lock again. The action happens when the player takes the result.
+ * <p>A locked map does not zoom, move, update or lock again (see {@link SurveyTableOutcome}). The action happens when
+ * the player takes the result.
  */
 public final class SurveyMapTable {
     private SurveyMapTable() {
@@ -34,23 +35,24 @@ public final class SurveyMapTable {
         if (data == null) {
             return ItemStack.EMPTY;
         }
-        if (input.is(CartofoldItems.EMPTY_SURVEY_MAP.get())) {
+        SurveyTableOutcome outcome = SurveyTableOutcome.of(SurveyTableOutcome.Input.of(input), data.locked(),
+                data.scale(), button);
+        if (outcome == SurveyTableOutcome.COPY) {
             return map.copyWithCount(2);
         }
-        if (data.locked()) {
-            return ItemStack.EMPTY;
-        }
-        if (input.is(Items.PAPER)) {
-            SurveyMapAction action = SurveyMapAction.ofButton(button);
-            if (action == SurveyMapAction.ZOOM && data.scale() >= SurveyMapData.MAX_SCALE) {
-                return ItemStack.EMPTY;
-            }
-            return withAction(map, action);
-        }
-        if (input.is(Items.GLASS_PANE)) {
-            return withAction(map, SurveyMapAction.LOCK);
-        }
-        return ItemStack.EMPTY;
+        SurveyMapAction action = outcome.action();
+        return action == null ? ItemStack.EMPTY : withAction(map, action);
+    }
+
+    /**
+     * The geometry of the map that a zoom gives: the next scale, with the center on the grid of the game.
+     *
+     * @param map the geometry of the map
+     * @return the geometry of the zoomed-out map
+     */
+    public static PaperMapGeometry zoomed(PaperMapGeometry map) {
+        return SurveyMapData.around(Level.OVERWORLD, map.centerX(), map.centerZ(),
+                Math.min(map.scale() + 1, SurveyMapData.MAX_SCALE)).geometry();
     }
 
     private static ItemStack withAction(ItemStack map, SurveyMapAction action) {
