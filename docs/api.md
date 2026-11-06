@@ -205,6 +205,10 @@ CartofoldWorldMap.at(Level.OVERWORLD, villageX, villageZ)
 
 The game calls `init()` of the screen of the mod again when the map closes: keep the state of the screen in its fields. The server sends the chunks of the dimension of the player only. In another dimension, the map shows the chunks that the client has, and the layers.
 
+### Blocks with a use action
+
+A survey map used on a block of a source marks the map, also when the block opens a screen: Cartofold gives this use to the map before the block. The block thus needs no code for the survey maps. The item tag `cartofold:survey_maps` and `PaperMapMarkers.isSurveyMap(stack)` tell if an item is a survey map.
+
 ## Map frames
 
 `MapFrame` is a widget for the screens of the other mods. It shows the explored map, the layers with the kind `MapViewKind.FRAME`, the waypoints and the player.

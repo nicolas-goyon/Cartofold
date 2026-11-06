@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.paper;
 
 import io.github.nicolasgoyon.cartofold.Cartofold;
+import io.github.nicolasgoyon.cartofold.api.PaperMapMarkers;
 import io.github.nicolasgoyon.cartofold.api.PaperMarkerSource;
 import io.github.nicolasgoyon.cartofold.server.BannerService;
 import java.util.Map;
@@ -13,6 +14,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.common.util.TriState;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
  * The waypoints of blocks on the survey maps, as the banners on the vanilla maps (see
@@ -40,6 +43,17 @@ public final class PaperWaypoints {
     /** True if a block is a block of a source. The client calls it, with no data of the sources. */
     public static boolean sourceBlock(BlockState state) {
         return source(state).isPresent();
+    }
+
+    /**
+     * A player uses an item on a block: a survey map on a block of a source goes to the map, before the use action of
+     * the block. The event comes on the client and on the server, so the two sides stay the same.
+     */
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (PaperMapMarkers.isSurveyMap(event.getItemStack())
+                && sourceBlock(event.getLevel().getBlockState(event.getPos()))) {
+            event.setUseBlock(TriState.FALSE);
+        }
     }
 
     /** The source of a block, or empty. */

@@ -146,7 +146,9 @@ Cartofold posts this event on `NeoForge.EVENT_BUS`, on the server thread. It com
 
 ### `PaperMapMarkers`
 
-`PaperMapMarkers.register(PaperMarkerSource source)` adds a source of waypoints. Call it once, in the setup of the mod. A source with the identifier of another source replaces it.
+`PaperMapMarkers.register(PaperMarkerSource source)` adds a source of waypoints. Call it once, in the setup of the mod. A source with the identifier of another source replaces it. A survey map on a block of a source marks the map before the use action of the block.
+
+`PaperMapMarkers.isSurveyMap(ItemStack stack)` tells if an item has the tag `PaperMapMarkers.SURVEY_MAPS` (`cartofold:survey_maps`).
 
 ### `PaperMarkerSource`
 
