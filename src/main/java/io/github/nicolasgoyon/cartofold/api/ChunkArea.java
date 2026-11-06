@@ -39,6 +39,7 @@ public final class ChunkArea {
                 buf.writeInt(area.borderColor);
                 ComponentSerialization.STREAM_CODEC.encode(buf, area.name);
                 TOOLTIP_CODEC.encode(buf, area.tooltip);
+                buf.writeBoolean(area.onlyExplored);
             },
             buf -> {
                 String id = buf.readUtf();
@@ -55,7 +56,7 @@ public final class ChunkArea {
                 int border = buf.readInt();
                 Component name = ComponentSerialization.STREAM_CODEC.decode(buf);
                 List<Component> tooltip = TOOLTIP_CODEC.decode(buf);
-                return new ChunkArea(id, dimension, chunks, fill, border, name, tooltip);
+                return new ChunkArea(id, dimension, chunks, fill, border, name, tooltip, buf.readBoolean());
             });
 
     private final String id;
@@ -65,9 +66,10 @@ public final class ChunkArea {
     private final int borderColor;
     private final Component name;
     private final List<Component> tooltip;
+    private final boolean onlyExplored;
 
     private ChunkArea(String id, ResourceKey<Level> dimension, LongOpenHashSet chunks, int fillColor,
-            int borderColor, Component name, List<Component> tooltip) {
+            int borderColor, Component name, List<Component> tooltip, boolean onlyExplored) {
         if (chunks.size() > MAX_CHUNKS) {
             throw new IllegalArgumentException("An area has " + MAX_CHUNKS + " chunks at most");
         }
@@ -81,6 +83,7 @@ public final class ChunkArea {
         this.borderColor = borderColor;
         this.name = name;
         this.tooltip = List.copyOf(tooltip);
+        this.onlyExplored = onlyExplored;
     }
 
     /**
@@ -113,7 +116,7 @@ public final class ChunkArea {
             int borderColor, Component name, List<Component> tooltip) {
         LongOpenHashSet packed = new LongOpenHashSet(chunks.size());
         chunks.forEach(chunk -> packed.add(chunk.toLong()));
-        return new ChunkArea(id, dimension, packed, fillColor, borderColor, name, tooltip);
+        return new ChunkArea(id, dimension, packed, fillColor, borderColor, name, tooltip, false);
     }
 
     public String id() {
@@ -151,15 +154,32 @@ public final class ChunkArea {
         return tooltip;
     }
 
+    /**
+     * True if the views show the area only on the chunks that the player explored. The border then goes around the
+     * explored chunks of the area. See {@link #withOnlyExplored}.
+     */
+    public boolean onlyExplored() {
+        return onlyExplored;
+    }
+
+    /**
+     * The same area, shown only on the chunks that the player explored, or on all its chunks. The other chunks stay
+     * dark, as a fog of war. The other elements of the layer do not change: {@link LayerInfo#onlyExplored} hides all
+     * the elements of a layer.
+     */
+    public ChunkArea withOnlyExplored(boolean only) {
+        return new ChunkArea(id, dimension, new LongOpenHashSet(chunks), fillColor, borderColor, name, tooltip, only);
+    }
+
     @Override
     public boolean equals(Object other) {
         return other instanceof ChunkArea area && id.equals(area.id) && dimension.equals(area.dimension)
                 && chunks.equals(area.chunks) && fillColor == area.fillColor && borderColor == area.borderColor
-                && name.equals(area.name) && tooltip.equals(area.tooltip);
+                && name.equals(area.name) && tooltip.equals(area.tooltip) && onlyExplored == area.onlyExplored;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, dimension, chunks, fillColor, borderColor, name, tooltip);
+        return Objects.hash(id, dimension, chunks, fillColor, borderColor, name, tooltip, onlyExplored);
     }
 }

@@ -87,7 +87,7 @@ ChunkArea.of(id, dimension, chunks, fillColor, borderColor, name, tooltip)
 | `name` | `Component` | The name of the area. |
 | `tooltip` | `List<Component>` | The lines above the area, 16 at most. With no line, the area has no tooltip. |
 
-The getters have the same names. `contains(chunkX, chunkZ)` tells if the area has a chunk.
+The getters have the same names. `contains(chunkX, chunkZ)` tells if the area has a chunk. `withOnlyExplored(true)` gives the same area, shown only on the chunks that the player explored, with a border around this part; `onlyExplored()` reads it.
 
 ### `MapLine`
 

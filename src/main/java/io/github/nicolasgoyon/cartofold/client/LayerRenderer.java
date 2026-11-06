@@ -16,6 +16,8 @@ import io.github.nicolasgoyon.cartofold.view.LayerGeometry;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MarkerSizes;
 import io.github.nicolasgoyon.cartofold.waypoint.BannerMark;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -119,8 +121,10 @@ public final class LayerRenderer {
             if (!area.dimension().equals(dimension)) {
                 continue;
             }
+            // An area of its own with only the explored chunks: its fill and its border follow the explored part.
+            LongSet chunks = area.onlyExplored() ? exploredChunks(area.chunks(), explored) : area.chunks();
             if ((area.fillColor() >>> 24) != 0) {
-                area.chunks().forEach(packed -> {
+                chunks.forEach(packed -> {
                     int chunkX = ChunkPos.getX(packed);
                     int chunkZ = ChunkPos.getZ(packed);
                     int minX = chunkX << 4;
@@ -135,7 +139,7 @@ public final class LayerRenderer {
                 });
             }
             if ((area.borderColor() >>> 24) != 0) {
-                for (int[] side : LayerGeometry.border(area.chunks(), bounds)) {
+                for (int[] side : LayerGeometry.border(chunks, bounds)) {
                     // A side is between a chunk of the area and a chunk out of the area: one of the two is explored.
                     if (onlyExplored && !sideExplored(side, explored)) {
                         continue;
@@ -190,6 +194,17 @@ public final class LayerRenderer {
                 labels.add(content.info().id(), marker.id(), marker.name(), point[0], point[1] + sizes.nameOffset());
             }
         }
+    }
+
+    /** The chunks of a set that the player explored. */
+    private static LongSet exploredChunks(LongSet chunks, Explored explored) {
+        LongOpenHashSet result = new LongOpenHashSet();
+        chunks.forEach(packed -> {
+            if (explored.chunk(ChunkPos.getX(packed), ChunkPos.getZ(packed))) {
+                result.add(packed);
+            }
+        });
+        return result;
     }
 
     private static boolean sideExplored(int[] side, Explored explored) {
@@ -256,7 +271,7 @@ public final class LayerRenderer {
             }
             for (ChunkArea area : content.areas().reversed()) {
                 if (!area.tooltip().isEmpty() && area.dimension().equals(dimension)
-                        && area.contains(chunkX, chunkZ)) {
+                        && area.contains(chunkX, chunkZ) && (!area.onlyExplored() || explored.chunk(chunkX, chunkZ))) {
                     return Optional.of(area);
                 }
             }

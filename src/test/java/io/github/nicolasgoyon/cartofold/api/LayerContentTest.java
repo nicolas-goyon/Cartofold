@@ -50,6 +50,19 @@ class LayerContentTest {
     }
 
     @Test
+    void areaKeepsItsChunksWithTheExploredOption() {
+        ChunkArea area = ChunkArea.of("area", OVERWORLD, List.of(new ChunkPos(0, 0), new ChunkPos(1, 0)), 0x40FF0000,
+                0xFFFF0000, Component.literal("Area"));
+
+        ChunkArea fog = area.withOnlyExplored(true);
+
+        assertEquals(false, area.onlyExplored());
+        assertEquals(true, fog.onlyExplored());
+        assertEquals(area.chunks(), fog.chunks());
+        assertEquals(false, area.equals(fog));
+    }
+
+    @Test
     void changedMarkerKeepsItsPlace() {
         LayerContent content = layer(List.of(marker("a", 0), marker("b", 1)));
 

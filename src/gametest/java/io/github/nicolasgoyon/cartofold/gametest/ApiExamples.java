@@ -59,7 +59,9 @@ public final class ApiExamples {
                 0xFFFF4040, // the border, in ARGB
                 Component.literal("North village"),
                 List.of(Component.literal("North village"),
-                        Component.literal("Red faction").withColor(FACTION_COLOR)));
+                        Component.literal("Red faction").withColor(FACTION_COLOR)))
+                // The territory shows only where the player explored, as a fog of war.
+                .withOnlyExplored(true);
 
         MapLine road = new MapLine("north_road", Level.OVERWORLD, List.of(heart, gate), 0xFFE0C080, 2);
 

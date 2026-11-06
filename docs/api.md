@@ -88,6 +88,13 @@ ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4
         List.of(Component.literal("North village"), Component.literal("Red faction").withColor(0xFF4040)));
 ```
 
+An area can also show only on the chunks that the player explored, with `area.withOnlyExplored(true)`. The other chunks of the area stay dark, as a fog of war, and the border goes around the explored part. The markers and the lines of the layer still show everywhere: `LayerInfo.onlyExplored` hides all the elements of a layer.
+
+```java
+ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4000FF00, 0xFF00FF00,
+        Component.literal("North village")).withOnlyExplored(true);
+```
+
 - `LayerInfo.order`: a layer with a higher order draws above the layers with a lower order. The waypoints of the player are above all the layers.
 - `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`).
 - `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored. With `false`, the layer also shows on the background of a map frame.
