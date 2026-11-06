@@ -271,10 +271,10 @@ public final class LayerRenderer {
      */
     public static List<Component> tooltipAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY) {
-        Optional<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
-                .flatMap(hit -> hit.marker().tooltip());
-        if (marker.isPresent()) {
-            return List.of(marker.get());
+        List<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
+                .map(hit -> hit.marker().tooltipLines()).orElse(List.of());
+        if (!marker.isEmpty()) {
+            return marker;
         }
         return areaAt(dimension, projection, kind, layers, screenX, screenY).map(ChunkArea::tooltip)
                 .orElse(List.of());

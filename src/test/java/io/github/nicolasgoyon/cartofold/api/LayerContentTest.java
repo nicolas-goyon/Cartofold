@@ -31,6 +31,25 @@ class LayerContentTest {
     }
 
     @Test
+    void markerKeepsAllTheLinesOfItsTooltip() {
+        List<Component> lines = List.of(Component.literal("Red faction"), Component.literal("At war"),
+                Component.literal("North"));
+
+        MapMarker marker = marker("a", 0).withTooltip(lines).withClick(true);
+
+        assertEquals(lines, marker.tooltipLines());
+        assertEquals(java.util.Optional.of(lines.getFirst()), marker.tooltip());
+        assertEquals(true, marker.clickable());
+    }
+
+    @Test
+    void tooltipOverTheLimitFails() {
+        List<Component> lines = java.util.Collections.nCopies(MapMarker.MAX_TOOLTIP_LINES + 1, Component.literal("x"));
+
+        assertThrows(IllegalArgumentException.class, () -> marker("a", 0).withTooltip(lines));
+    }
+
+    @Test
     void changedMarkerKeepsItsPlace() {
         LayerContent content = layer(List.of(marker("a", 0), marker("b", 1)));
 

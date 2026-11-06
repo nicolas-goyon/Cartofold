@@ -113,7 +113,7 @@ A marker at a position. A record.
 | `color` | `int` | The color, in RGB: the diamond of a marker with no icon, or a tinted icon. |
 | `icon` | `Optional<ResourceLocation>` | The texture of a square icon, or empty for a diamond. |
 | `name` | `Component` | The name under the marker. An empty text shows no name. |
-| `tooltip` | `Optional<Component>` | The text under the mouse. |
+| `tooltipLines` | `List<Component>` | The lines under the mouse, 16 at most. With no line, the marker has no tooltip. |
 | `clickable` | `boolean` | True to post `MarkerClickEvent` on the server after a click. |
 | `tinted` | `boolean` | True to multiply the pixels of the icon by the color. |
 
@@ -121,6 +121,10 @@ A marker at a position. A record.
 | --- | --- |
 | `MapMarker.of(id, dimension, pos, color, name)` | A diamond with no tooltip and no click. |
 | `MapMarker.tinted(id, dimension, pos, color, icon, name)` | An icon in the color of the marker, with no tooltip and no click. |
+| `withTooltip(List<Component> lines)` | The same marker with other lines of tooltip. |
+| `withClick(boolean click)` | The same marker, clickable or not. |
+
+The constructors with an `Optional<Component> tooltip` stay: they give a tooltip of one line. `tooltip()` gives the first line.
 
 A constructor without `tinted` keeps the colors of the icon.
 

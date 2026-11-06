@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -76,9 +77,11 @@ public final class ApiExamples {
         LayerInfo info = new LayerInfo(layer, Component.literal("Quest"), 20,
                 Set.of(MapViewKind.WORLD_MAP, MapViewKind.FRAME), false);
 
-        MapMarker marker = new MapMarker("target", player.level().dimension(), target, 0xFFD020,
-                Optional.of(MarkerShapes.CROSS), Component.literal("Target"),
-                Optional.of(Component.literal("Click to open the quest")), true, true);
+        MapMarker marker = MapMarker.tinted("target", player.level().dimension(), target, 0xFFD020,
+                MarkerShapes.CROSS, Component.literal("Target"))
+                .withTooltip(List.of(Component.literal("Find the lost map"),
+                        Component.literal("Click to open the quest").withStyle(ChatFormatting.GRAY)))
+                .withClick(true);
 
         CartofoldLayers.set(player, new LayerContent(info, List.of(), List.of(), List.of(marker)));
     }
