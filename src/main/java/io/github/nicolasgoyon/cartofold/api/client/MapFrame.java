@@ -28,6 +28,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * A map frame for the screens of the other mods: a widget that shows the explored map, the layers of a selection and
@@ -51,6 +52,8 @@ public class MapFrame extends AbstractWidget {
     private static final int BORDER = 0xFF404040;
     /** A press and a release with a larger move than this distance, in units of the screen, are a drag. */
     private static final double CLICK_DISTANCE = 2;
+    /** An arrow key moves the view by this part of the smallest side of the frame. */
+    private static final double KEY_MOVE = 1.0 / 8;
     /** The free space around a box of {@link #showBox}, in units of the screen. */
     private static final double BOX_MARGIN = 8;
 
@@ -361,6 +364,34 @@ public class MapFrame extends AbstractWidget {
             return false;
         }
         state.zoom(projection(), mouseX, mouseY, scrollY);
+        viewChange.accept(view());
+        return true;
+    }
+
+    /**
+     * When the frame has the focus, the arrow keys move the view by a part of the frame, and + and - zoom at the center.
+     * A screen gives the focus to the frame with a click on the frame, or with Tab.
+     */
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!interactive || !isFocused()) {
+            return false;
+        }
+        double step = Math.min(width, height) * KEY_MOVE;
+        switch (keyCode) {
+            case GLFW.GLFW_KEY_LEFT -> state.drag(step, 0);
+            case GLFW.GLFW_KEY_RIGHT -> state.drag(-step, 0);
+            case GLFW.GLFW_KEY_UP -> state.drag(0, step);
+            case GLFW.GLFW_KEY_DOWN -> state.drag(0, -step);
+            case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> state.zoom(projection(), getX() + width / 2.0,
+                    getY() + height / 2.0, 1);
+            case GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_KP_SUBTRACT -> state.zoom(projection(), getX() + width / 2.0,
+                    getY() + height / 2.0, -1);
+            default -> {
+                return false;
+            }
+        }
+        followPlayer = false;
         viewChange.accept(view());
         return true;
     }

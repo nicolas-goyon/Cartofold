@@ -234,6 +234,7 @@ protected void init() {
 - `showBox(minX, minZ, maxX, maxZ)` selects the center and the scale that show all of a box of blocks.
 - `onViewChange(view -> ...)` gets the new view when the player moves or zooms the frame.
 - `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
+- When the frame has the focus (after a click on the frame, or with Tab), the arrow keys move the view, and `+` and `-` zoom at the center. `interactive(false)` turns the keys off too.
 - `backgroundColor(color)` sets the color of the frame where the map has no chunk.
 - `background(context -> ...)` draws a background of the mod, below the chunks and below the layers. The context has the projection of the frame, as in a layer of the client. Use it for a relief that the mod calculates.
 - `allChunks(true)` shows the chunks that the other players explored, for a screen of an operator (permission level 2). For other players, the server sends only the explored chunks. The server has no map data for the chunks that no player explored: the background shows there. The client counts these chunks as explored until it frees their regions, also for the layers with `onlyExplored = true`.

@@ -214,6 +214,7 @@ new MapFrame(int x, int y, int width, int height)
 | `onMarkerClick(MarkerClickListener listener)` | Gets `(ResourceLocation layer, String marker)` after a click on a marker, on the client. |
 | `onEmptyClick(Runnable listener)` | Gets the clicks that hit no marker. |
 | `onViewChange(Consumer<MapFrame.View> listener)` | Gets the view after a move or a zoom of the player. |
+| Keys | With the focus (a click on the frame, or Tab), the arrow keys move the view, and `+` and `-` zoom. |
 
 **Other**
 
