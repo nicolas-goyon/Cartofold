@@ -1,21 +1,29 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.api.LayerInfo;
+import io.github.nicolasgoyon.cartofold.api.MapViewKind;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
-/** Shows and hides the layers in all the views. The settings of the client keep the hidden layers. */
+/**
+ * Shows and hides the layers in all the views, and in the world (the HUD). The settings of the client keep the hidden
+ * layers.
+ */
 public final class LayersScreen extends Screen {
     private static final int WIDTH = 240;
     private static final int ROW = 24;
     /** The largest number of layers on the screen. */
     private static final int MAX_ROWS = 10;
+    /** The width of the button of the markers in the world. */
+    private static final int HUD_WIDTH = 70;
 
     @Nullable
     private final Screen parent;
@@ -34,21 +42,33 @@ public final class LayersScreen extends Screen {
         for (LayerInfo layer : layers.subList(0, Math.min(layers.size(), MAX_ROWS))) {
             String id = layer.id().toString();
             boolean shown = !CartofoldClientConfig.HIDDEN_LAYERS.get().contains(id);
-            addRenderableWidget(CycleButton.onOffBuilder(shown).create(left, top + row * ROW, WIDTH, 20,
-                    layer.name(), (button, value) -> setShown(id, value)));
+            addRenderableWidget(CycleButton.onOffBuilder(shown).create(left, top + row * ROW,
+                    WIDTH - HUD_WIDTH - 4, 20, layer.name(), (button, value) -> setShown(
+                            CartofoldClientConfig.HIDDEN_LAYERS, id, value)));
+            boolean hud = layer.views().contains(MapViewKind.HUD);
+            boolean shownInHud = hud && !CartofoldClientConfig.HUD_HIDDEN_LAYERS.get().contains(id);
+            CycleButton<Boolean> hudButton = CycleButton.onOffBuilder(shownInHud)
+                    .withTooltip(value -> Tooltip.create(Component.translatable("cartofold.layers.hud.tooltip")))
+                    .create(left + WIDTH - HUD_WIDTH, top + row * ROW, HUD_WIDTH, 20,
+                            Component.translatable("cartofold.layers.hud"), (button, value) -> setShown(
+                                    CartofoldClientConfig.HUD_HIDDEN_LAYERS, id, value));
+            hudButton.active = hud;
+            addRenderableWidget(hudButton);
             row++;
         }
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
                 .bounds(width / 2 - 100, height - 28, 200, 20).build());
     }
 
-    private static void setShown(String id, boolean shown) {
-        List<String> hidden = new ArrayList<>(CartofoldClientConfig.HIDDEN_LAYERS.get());
+    /** Adds a layer to a list of hidden layers, or removes it. */
+    private static void setShown(ModConfigSpec.ConfigValue<List<? extends String>> setting, String id,
+            boolean shown) {
+        List<String> hidden = new ArrayList<>(setting.get());
         hidden.remove(id);
         if (!shown) {
             hidden.add(id);
         }
-        CartofoldClientConfig.HIDDEN_LAYERS.set(hidden);
+        setting.set(hidden);
         CartofoldClientConfig.SPEC.save();
     }
 

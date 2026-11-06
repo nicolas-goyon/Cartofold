@@ -41,6 +41,8 @@ public final class LayerRenderer {
     private static final float BORDER_WIDTH = 1.5f;
     /** The side of the textures of the icons in the draw, before the scale of {@link MarkerSizes#icon}. */
     private static final int ICON_TEXTURE = 10;
+    /** The size of an icon of a marker in the world view (see {@link WorldHud}), in units of the screen. */
+    static final int ICON_SIZE = 10;
     /** The distance in units of the screen to select a marker with the mouse. */
 
     private LayerRenderer() {
@@ -89,6 +91,11 @@ public final class LayerRenderer {
         }
         entries.sort(Comparator.comparingInt(Entry::order));
         entries.forEach(entry -> entry.draw().run());
+    }
+
+    /** The explored blocks of a dimension, with a cache of the regions for one draw. */
+    static Predicate<BlockPos> exploredBlocks(ResourceKey<Level> dimension) {
+        return new Explored(dimension)::block;
     }
 
     /** The explored chunks of the client, with a cache of the regions for one draw. */

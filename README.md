@@ -19,7 +19,7 @@
 Cartofold is a map mod for Minecraft (NeoForge). It needs no other mod. Install it on the server and on the client.
 
 - **Minimap and map of the world**, with the caves at the height of the player.
-- **Waypoints and banners** on all your maps.
+- **Waypoints and banners** on all your maps, and in the world with their name and their distance.
 - **Survey maps**: paper maps of their own, with a cartography table that moves and updates them.
 - **API**: other mods add layers to all the maps, and show map frames in their own screens.
 

@@ -51,14 +51,24 @@ public final class MapShapes {
      */
     public static void drawMarker(GuiGraphics graphics, float x, float y, int color, boolean death) {
         float scale = (float) CartofoldClientConfig.markerSizes().diamond();
-        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0).scale(scale, scale, 1);
-        if (!death) {
-            matrix.rotateZ((float) (Math.PI / 4));
-        }
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
-        square(buffer, matrix, 4f, ARROW_OUTLINE);
-        square(buffer, matrix, 2.8f, 0xFF000000 | color);
+        marker(buffer, new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0).scale(scale, scale, 1), color,
+                death, 1);
         draw(buffer);
+    }
+
+    /**
+     * Adds the marker of a waypoint at the origin of a matrix to a buffer of triangles.
+     *
+     * @param color   the color, in RGB
+     * @param opacity the opacity, from 0 (invisible) to 1
+     */
+    static void marker(BufferBuilder buffer, Matrix4f matrix, int color, boolean death, float opacity) {
+        int alpha = Math.round(Math.clamp(opacity, 0, 1) * 255) << 24;
+        Matrix4f turned = death ? matrix : new Matrix4f(matrix).rotateZ((float) (Math.PI / 4));
+        // The outline is black: only its opacity changes.
+        square(buffer, turned, 4f, alpha);
+        square(buffer, turned, 2.8f, alpha | (color & 0xFFFFFF));
     }
 
     /** Draws the mark of a selected marker at a point: a white frame around the marker. */
@@ -79,7 +89,8 @@ public final class MapShapes {
         rectangle(buffer, matrix, inner, -inner, outer, inner, color);
     }
 
-    private static void rectangle(BufferBuilder buffer, Matrix4f matrix, float minX, float minY, float maxX, float maxY,
+    /** Adds a rectangle to a buffer of triangles. */
+    static void rectangle(BufferBuilder buffer, Matrix4f matrix, float minX, float minY, float maxX, float maxY,
             int color) {
         quad(buffer, matrix, new double[] {minX, minY}, new double[] {minX, maxY}, new double[] {maxX, maxY},
                 new double[] {maxX, minY}, color);

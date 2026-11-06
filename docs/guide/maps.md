@@ -45,4 +45,4 @@ The setting **Caves** turns this view off. The dimensions with a ceiling, such a
 
 ## Layers
 
-Other mods add layers to the maps, for example territories, routes and markers. Use the button **Layers** of the map of the world to show or hide each layer.
+Other mods add layers to the maps, for example territories, routes and markers. Use the button **Layers** of the map of the world to show or hide each layer. The button **HUD** of a layer shows or hides its markers in the [world](waypoints.md#markers-in-the-world).

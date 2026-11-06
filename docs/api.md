@@ -96,7 +96,7 @@ ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4
 ```
 
 - `LayerInfo.order`: a layer with a higher order draws above the layers with a lower order. The waypoints of the player are above all the layers.
-- `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`).
+- `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`, `HUD`). With `HUD`, the screen of the game shows the markers of the layer at their positions in the world, with their icon, their name and their distance. The areas and the lines do not show in the world. `LayerInfo.of` and `MapViewKind.all()` contain `HUD`: remove it from the views of a layer with many markers that the player does not need in the world. The player can also hide each layer in the world.
 - `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored. With `false`, the layer also shows on the background of a map frame.
 - A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most, an area and a marker have 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.

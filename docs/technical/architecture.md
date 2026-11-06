@@ -17,7 +17,7 @@ All the packages are in `io.github.nicolasgoyon.cartofold`.
 | `paper` | Common | The survey maps. |
 | `server` | Server | The services: exploration, layers, waypoints and banners. |
 | `tile` | Common | The images of the tiles and their levels of detail. |
-| `view` | Common | The pure logic of the views: projection, zoom, layout of the names. |
+| `view` | Common | The pure logic of the views: projection, zoom, layout of the names, markers in the world. |
 | `waypoint` | Common | The waypoints and the marks of the banners. |
 
 Only `api`, `api.client` and `view.MapProjection` are part of the public API.
@@ -30,6 +30,7 @@ Only `api`, `api.client` and `view.MapProjection` are part of the public API.
 4. `ExplorationSync` sends the explored chunks of these regions: 32 chunks at most each tick for each player.
 5. `ClientExploration` keeps the regions. `MapTiles` makes the textures.
 6. `MapView` draws the tiles, then `LayerRenderer` draws the layers. `MapLabels` draws the names above all the markers.
+7. `WorldHud` keeps the matrices of the camera at the end of the draw of the world. Its layer of the screen then draws the waypoints and the markers in the world, with the rules of `HudLayout`.
 
 ## Payloads
 
