@@ -173,15 +173,18 @@ public final class LayerRenderer {
                     graphics.setColor(((marker.color() >> 16) & 0xFF) / 255f, ((marker.color() >> 8) & 0xFF) / 255f,
                             (marker.color() & 0xFF) / 255f, 1);
                 }
-                graphics.blit(marker.icon().get(), (int) Math.round(point[0]) - ICON_SIZE / 2,
-                        (int) Math.round(point[1]) - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1, 1, 1);
+                // The pose keeps the point with no rounding: the icon stays on its pixel of the map.
+                graphics.pose().pushPose();
+                graphics.pose().translate(point[0], point[1], 0);
+                graphics.blit(marker.icon().get(), -ICON_SIZE / 2, -ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1,
+                        1, 1);
+                graphics.pose().popPose();
                 graphics.setColor(1, 1, 1, 1);
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
             if (labels != null && projection.contains(point[0], point[1])) {
-                labels.add(content.info().id(), marker.id(), marker.name(), (int) Math.round(point[0]),
-                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2);
+                labels.add(content.info().id(), marker.id(), marker.name(), point[0], point[1] + ICON_SIZE / 2.0 + 2);
             }
         }
     }

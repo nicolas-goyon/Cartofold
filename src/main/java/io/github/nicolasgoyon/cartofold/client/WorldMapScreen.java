@@ -21,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -136,7 +137,8 @@ public final class WorldMapScreen extends Screen {
             onClose();
             return;
         }
-        state.track(player.getX(), player.getZ());
+        Vec3 position = player.getPosition(partialTick);
+        state.track(position.x, position.z);
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(dimension, slice);
         ExplorationRequests.view(this, key, projection.regions());
@@ -151,7 +153,7 @@ public final class WorldMapScreen extends Screen {
         }
         labels.draw(graphics, font);
         if (player.level().dimension().equals(dimension)) {
-            double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
+            double[] playerPoint = projection.toScreen(position.x, position.z);
             MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
                     (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
         }

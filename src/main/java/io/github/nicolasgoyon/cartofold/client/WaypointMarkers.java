@@ -57,7 +57,7 @@ public final class WaypointMarkers {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], waypoint.color(), waypoint.death());
             if (labels != null && projection.contains(point[0], point[1])) {
-                labels.add(name(waypoint), (int) Math.round(point[0]), (int) Math.round(point[1]) + MARKER_SIZE + 1,
+                labels.add(name(waypoint), point[0], point[1] + MARKER_SIZE + 1,
                         Math.hypot(point[0] - mouseX, point[1] - mouseY) <= SELECT_DISTANCE);
             }
         }

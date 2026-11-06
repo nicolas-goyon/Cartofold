@@ -26,6 +26,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
@@ -277,8 +278,9 @@ public class MapFrame extends AbstractWidget {
         if (shown == null || player == null) {
             return;
         }
+        Vec3 position = player.getPosition(partialTick);
         if (followPlayer) {
-            state.center(player.getX(), player.getZ());
+            state.center(position.x, position.z);
         }
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(shown, slice);
@@ -301,7 +303,7 @@ public class MapFrame extends AbstractWidget {
         }
         labels.draw(graphics, Minecraft.getInstance().font);
         if (showPlayer && player.level().dimension().equals(shown)) {
-            double[] point = projection.toScreen(player.getX(), player.getZ());
+            double[] point = projection.toScreen(position.x, position.z);
             MapShapes.drawArrow(graphics, (float) point[0], (float) point[1],
                     (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
         }

@@ -23,7 +23,7 @@ public final class MapLabels {
     public record Key(ResourceLocation layer, String marker) {
     }
 
-    private record Label(Component name, int x, int y) {
+    private record Label(Component name, double x, double y) {
     }
 
     @Nullable
@@ -50,7 +50,7 @@ public final class MapLabels {
     }
 
     /** Adds the name of a marker of a layer, with its center at the top of the point. */
-    public void add(ResourceLocation layer, String marker, Component name, int x, int y) {
+    public void add(ResourceLocation layer, String marker, Component name, double x, double y) {
         Key key = new Key(layer, marker);
         add(name, x, y, Objects.equals(key, hovered) || Objects.equals(key, selected));
     }
@@ -60,7 +60,7 @@ public final class MapLabels {
      *
      * @param priority true if the name always shows
      */
-    public void add(Component name, int x, int y, boolean priority) {
+    public void add(Component name, double x, double y, boolean priority) {
         if (!name.getString().isEmpty()) {
             (priority ? this.priority : others).add(new Label(name, x, y));
         }
@@ -70,15 +70,23 @@ public final class MapLabels {
     public void draw(GuiGraphics graphics, Font font) {
         LabelLayout layout = new LabelLayout();
         for (Label label : priority) {
-            int half = font.width(label.name()) / 2;
+            double half = font.width(label.name()) / 2.0;
             layout.force(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight);
-            graphics.drawCenteredString(font, label.name(), label.x(), label.y(), COLOR);
+            drawName(graphics, font, label);
         }
         for (Label label : others.reversed()) {
-            int half = font.width(label.name()) / 2;
+            double half = font.width(label.name()) / 2.0;
             if (layout.place(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight)) {
-                graphics.drawCenteredString(font, label.name(), label.x(), label.y(), COLOR);
+                drawName(graphics, font, label);
             }
         }
+    }
+
+    /** Draws a name at its point, with no rounding: the name stays under its marker when the map moves. */
+    private static void drawName(GuiGraphics graphics, Font font, Label label) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(label.x(), label.y(), 0);
+        graphics.drawCenteredString(font, label.name(), 0, 0, COLOR);
+        graphics.pose().popPose();
     }
 }
