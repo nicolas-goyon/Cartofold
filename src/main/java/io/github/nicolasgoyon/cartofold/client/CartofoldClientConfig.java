@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.client;
 
 import io.github.nicolasgoyon.cartofold.api.MapViewKind;
+import io.github.nicolasgoyon.cartofold.view.MarkerSizes;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +55,7 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.BooleanValue WORLD_MAP_WAYPOINT_NAMES;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> HIDDEN_LAYERS;
     public static final ModConfigSpec.EnumValue<BannerViews> BANNER_VIEWS;
+    public static final ModConfigSpec.DoubleValue MARKER_SCALE;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -93,9 +95,19 @@ public final class CartofoldClientConfig {
                 .translation("cartofold.configuration.layers.banner_views")
                 .defineEnum("bannerViews", BannerViews.BOTH);
         builder.pop();
+        builder.translation("cartofold.configuration.markers").push("markers");
+        MARKER_SCALE = builder.comment("The scale of the markers, of their names and of the arrow of the player.")
+                .translation("cartofold.configuration.markers.scale")
+                .defineInRange("scale", 1.0, MarkerSizes.MIN_SCALE, MarkerSizes.MAX_SCALE);
+        builder.pop();
         SPEC = builder.build();
     }
 
     private CartofoldClientConfig() {
+    }
+
+    /** The sizes of the markers, with the scale of the setting. */
+    public static MarkerSizes markerSizes() {
+        return new MarkerSizes(MARKER_SCALE.get());
     }
 }

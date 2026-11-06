@@ -16,16 +16,15 @@ import org.joml.Matrix4f;
 public final class MapShapes {
     private static final int ARROW = 0xFFFFFFFF;
     private static final int ARROW_OUTLINE = 0xFF000000;
-    /** The half of the free space in the mark of a selected marker, in units of the screen. */
-    private static final float SELECTION = 6f;
 
     private MapShapes() {
     }
 
     /** Draws the arrow of the player at a point, turned clockwise by an angle. With an angle of 0, it points to the top. */
     public static void drawArrow(GuiGraphics graphics, float x, float y, float angle) {
+        float scale = (float) CartofoldClientConfig.markerSizes().arrow();
         Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0)
-                .rotateZ(angle);
+                .rotateZ(angle).scale(scale, scale, 1);
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
         arrow(buffer, matrix, 1.6f, ARROW_OUTLINE);
         arrow(buffer, matrix, 1f, ARROW);
@@ -51,7 +50,8 @@ public final class MapShapes {
      * @param color the color, in RGB
      */
     public static void drawMarker(GuiGraphics graphics, float x, float y, int color, boolean death) {
-        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
+        float scale = (float) CartofoldClientConfig.markerSizes().diamond();
+        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0).scale(scale, scale, 1);
         if (!death) {
             matrix.rotateZ((float) (Math.PI / 4));
         }
@@ -65,8 +65,9 @@ public final class MapShapes {
     public static void drawSelection(GuiGraphics graphics, float x, float y) {
         Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
-        frame(buffer, matrix, SELECTION, SELECTION + 2.2f, ARROW_OUTLINE);
-        frame(buffer, matrix, SELECTION + 0.8f, SELECTION + 1.4f, ARROW);
+        float selection = (float) CartofoldClientConfig.markerSizes().selection();
+        frame(buffer, matrix, selection, selection + 1.4f, ARROW_OUTLINE);
+        frame(buffer, matrix, selection + 0.5f, selection + 0.9f, ARROW);
         draw(buffer);
     }
 

@@ -14,6 +14,7 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.LayerGeometry;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
+import io.github.nicolasgoyon.cartofold.view.MarkerSizes;
 import io.github.nicolasgoyon.cartofold.waypoint.BannerMark;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,10 +37,9 @@ import org.joml.Matrix4f;
 public final class LayerRenderer {
     /** The width of the border of an area, in units of the screen. */
     private static final float BORDER_WIDTH = 1.5f;
-    /** The size of an icon of a marker, in units of the screen. */
-    private static final int ICON_SIZE = 10;
+    /** The side of the textures of the icons in the draw, before the scale of {@link MarkerSizes#icon}. */
+    private static final int ICON_TEXTURE = 10;
     /** The distance in units of the screen to select a marker with the mouse. */
-    private static final double SELECT_DISTANCE = 6;
 
     private LayerRenderer() {
     }
@@ -160,6 +160,7 @@ public final class LayerRenderer {
             }
         }
         MapShapes.draw(buffer);
+        MarkerSizes sizes = CartofoldClientConfig.markerSizes();
         for (MapMarker marker : content.markers()) {
             if (!marker.dimension().equals(dimension) || (onlyExplored && !explored.block(marker.pos()))) {
                 continue;
@@ -175,16 +176,18 @@ public final class LayerRenderer {
                 }
                 // The pose keeps the point with no rounding: the icon stays on its pixel of the map.
                 graphics.pose().pushPose();
+                float scale = (float) (sizes.icon() / ICON_TEXTURE);
                 graphics.pose().translate(point[0], point[1], 0);
-                graphics.blit(marker.icon().get(), -ICON_SIZE / 2, -ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1,
-                        1, 1);
+                graphics.pose().scale(scale, scale, 1);
+                graphics.blit(marker.icon().get(), -ICON_TEXTURE / 2, -ICON_TEXTURE / 2, ICON_TEXTURE, ICON_TEXTURE, 0,
+                        0, 1, 1, 1, 1);
                 graphics.pose().popPose();
                 graphics.setColor(1, 1, 1, 1);
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
             if (labels != null && projection.contains(point[0], point[1])) {
-                labels.add(content.info().id(), marker.id(), marker.name(), point[0], point[1] + ICON_SIZE / 2.0 + 2);
+                labels.add(content.info().id(), marker.id(), marker.name(), point[0], point[1] + sizes.nameOffset());
             }
         }
     }
@@ -213,7 +216,7 @@ public final class LayerRenderer {
     private static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY, Predicate<MapMarker> filter) {
         Hit best = null;
-        double bestDistance = SELECT_DISTANCE;
+        double bestDistance = CartofoldClientConfig.markerSizes().hit();
         Explored explored = new Explored(dimension);
         for (LayerContent content : ClientLayers.get().contents()) {
             if (!visible(content.info(), kind) || !layers.test(content.info().id())) {

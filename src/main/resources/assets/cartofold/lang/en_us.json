@@ -79,5 +79,9 @@
   "cartofold.configuration.layers.banner_views.tooltip": "The views that show the banners that the player marked on a map.",
   "cartofold.configuration.layers.banner_views.minimap": "Minimap",
   "cartofold.configuration.layers.banner_views.world_map": "Map of the world",
-  "cartofold.configuration.layers.banner_views.both": "Minimap and map of the world"
+  "cartofold.configuration.layers.banner_views.both": "Minimap and map of the world",
+  "cartofold.configuration.markers": "Markers",
+  "cartofold.configuration.markers.tooltip": "The markers on the minimap, on the map of the world and in the map frames.",
+  "cartofold.configuration.markers.scale": "Scale of the markers",
+  "cartofold.configuration.markers.scale.tooltip": "The scale of the markers, of their names and of the arrow of the player. 1 is the default size."
 }

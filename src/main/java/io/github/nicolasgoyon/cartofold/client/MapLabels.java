@@ -68,24 +68,27 @@ public final class MapLabels {
 
     /** Draws the names. */
     public void draw(GuiGraphics graphics, Font font) {
+        double scale = CartofoldClientConfig.markerSizes().name();
+        double height = font.lineHeight * scale;
         LabelLayout layout = new LabelLayout();
         for (Label label : priority) {
-            double half = font.width(label.name()) / 2.0;
-            layout.force(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight);
-            drawName(graphics, font, label);
+            double half = font.width(label.name()) * scale / 2;
+            layout.force(label.x() - half, label.y(), label.x() + half, label.y() + height);
+            drawName(graphics, font, label, scale);
         }
         for (Label label : others.reversed()) {
-            double half = font.width(label.name()) / 2.0;
-            if (layout.place(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight)) {
-                drawName(graphics, font, label);
+            double half = font.width(label.name()) * scale / 2;
+            if (layout.place(label.x() - half, label.y(), label.x() + half, label.y() + height)) {
+                drawName(graphics, font, label, scale);
             }
         }
     }
 
     /** Draws a name at its point, with no rounding: the name stays under its marker when the map moves. */
-    private static void drawName(GuiGraphics graphics, Font font, Label label) {
+    private static void drawName(GuiGraphics graphics, Font font, Label label, double scale) {
         graphics.pose().pushPose();
         graphics.pose().translate(label.x(), label.y(), 0);
+        graphics.pose().scale((float) scale, (float) scale, 1);
         graphics.drawCenteredString(font, label.name(), 0, 0, COLOR);
         graphics.pose().popPose();
     }

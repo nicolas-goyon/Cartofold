@@ -36,6 +36,12 @@ Open the settings from the list of the mods, or with the button **Settings** of 
 | `waypoints` | true | Show the waypoints. |
 | `waypointNames` | true | Show the names of the waypoints. |
 
+### Markers
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `scale` | 1.0 | The scale of the markers, of their names and of the arrow of the player, from 0.5 to 3. |
+
 ### Layers
 
 | Setting | Default | Description |

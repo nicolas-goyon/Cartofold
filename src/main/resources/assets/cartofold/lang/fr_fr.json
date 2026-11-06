@@ -79,5 +79,9 @@
   "cartofold.configuration.layers.banner_views.tooltip": "Les vues qui montrent les bannières que le joueur a marquées sur une carte.",
   "cartofold.configuration.layers.banner_views.minimap": "Mini-carte",
   "cartofold.configuration.layers.banner_views.world_map": "Carte du monde",
-  "cartofold.configuration.layers.banner_views.both": "Mini-carte et carte du monde"
+  "cartofold.configuration.layers.banner_views.both": "Mini-carte et carte du monde",
+  "cartofold.configuration.markers": "Marqueurs",
+  "cartofold.configuration.markers.tooltip": "Les marqueurs de la mini-carte, de la carte du monde et des cadres de carte.",
+  "cartofold.configuration.markers.scale": "Échelle des marqueurs",
+  "cartofold.configuration.markers.scale.tooltip": "L'échelle des marqueurs, de leurs noms et de la flèche du joueur. 1 est la taille par défaut."
 }
