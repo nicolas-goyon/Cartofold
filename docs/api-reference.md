@@ -212,6 +212,7 @@ new MapFrame(int x, int y, int width, int height)
 | --- | --- |
 | `interactive(boolean interactive)` | Allows the moves, the zoom and the clicks. On by default. |
 | `onMarkerClick(MarkerClickListener listener)` | Gets `(ResourceLocation layer, String marker)` after a click on a marker, on the client. |
+| `handleMarkerClick(MarkerClickHandler handler)` | Gets `(ResourceLocation layer, String marker)` after a click on a marker, on the client. Return true to keep the click from the server. |
 | `onEmptyClick(Runnable listener)` | Gets the clicks that hit no marker. |
 | `onViewChange(Consumer<MapFrame.View> listener)` | Gets the view after a move or a zoom of the player. |
 | Keys | With the focus (a click on the frame, or Tab), the arrow keys move the view, and `+` and `-` zoom. |

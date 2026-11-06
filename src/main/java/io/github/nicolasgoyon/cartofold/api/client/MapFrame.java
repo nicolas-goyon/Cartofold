@@ -79,6 +79,20 @@ public class MapFrame extends AbstractWidget {
         void clicked(ResourceLocation layer, String marker);
     }
 
+    /** Handles the clicks on the markers of a frame on the client, and can keep them from the server. */
+    @FunctionalInterface
+    public interface MarkerClickHandler {
+        /**
+         * The player clicked a marker.
+         *
+         * @param layer  the identifier of the layer of the marker
+         * @param marker the identifier of the marker in its layer
+         * @return true to keep the click on the client: the server gets no {@link
+         *     io.github.nicolasgoyon.cartofold.api.MarkerClickEvent}
+         */
+        boolean clicked(ResourceLocation layer, String marker);
+    }
+
     private final WorldMapState state;
     @Nullable
     private ResourceKey<Level> dimension;
@@ -93,6 +107,7 @@ public class MapFrame extends AbstractWidget {
     private Consumer<LayerRenderContext> background;
     private MapSlice slice = MapSlice.SURFACE;
     private MarkerClickListener markerClick = (layer, marker) -> { };
+    private MarkerClickHandler markerHandler = (layer, marker) -> false;
     private Runnable emptyClick = () -> { };
     private Consumer<View> viewChange = view -> { };
     @Nullable
@@ -203,6 +218,16 @@ public class MapFrame extends AbstractWidget {
      */
     public MapFrame onMarkerClick(MarkerClickListener listener) {
         this.markerClick = listener;
+        return this;
+    }
+
+    /**
+     * Sets the function that handles the clicks on the markers of the frame, on the client. When it returns true, the
+     * server gets no {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} for this click. The frame calls it
+     * before the function of {@link #onMarkerClick}.
+     */
+    public MapFrame handleMarkerClick(MarkerClickHandler handler) {
+        this.markerHandler = handler;
         return this;
     }
 
@@ -331,20 +356,28 @@ public class MapFrame extends AbstractWidget {
         pressed = true;
         pressX = mouseX;
         pressY = mouseY;
-        ResourceKey<Level> shown = shownDimension();
-        if (shown != null) {
-            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
-                    hit -> PacketDistributor.sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
-        }
     }
 
     @Override
     public void onRelease(double mouseX, double mouseY) {
         boolean click = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
         pressed = false;
-        if (click) {
-            markerAt(mouseX, mouseY).ifPresentOrElse(hit -> markerClick.clicked(hit.layer(), hit.marker().id()),
-                    emptyClick);
+        if (!click) {
+            return;
+        }
+        Optional<LayerRenderer.Hit> hit = markerAt(mouseX, mouseY);
+        if (hit.isEmpty()) {
+            emptyClick.run();
+            return;
+        }
+        boolean kept = markerHandler.clicked(hit.get().layer(), hit.get().marker().id());
+        markerClick.clicked(hit.get().layer(), hit.get().marker().id());
+        ResourceKey<Level> shown = shownDimension();
+        if (!kept && shown != null) {
+            // The nearest clickable marker: a marker with no click near the mouse does not take the click.
+            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
+                    found -> PacketDistributor.sendToServer(new MarkerClickPayload(found.layer(), found.marker()
+                            .id())));
         }
     }
 

@@ -175,7 +175,11 @@ public final class ApiExamples {
                     .layers(layer -> layer.getNamespace().equals("mymod"))
                     .showWaypoints(false)
                     .onViewChange(view -> savedView = view)
-                    .onMarkerClick((layer, marker) -> select(layer, marker))
+                    .handleMarkerClick((layer, marker) -> {
+                        select(layer, marker);
+                        // The journal handles the click: the server gets no MarkerClickEvent.
+                        return true;
+                    })
                     .onEmptyClick(this::clearSelection));
             if (savedView != null) {
                 frame.view(savedView);
