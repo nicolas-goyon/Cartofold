@@ -203,7 +203,10 @@ new MapFrame(int x, int y, int width, int height)
 | `backgroundColor(int color)` | The color where the map has no chunk, in ARGB. |
 | `background(Consumer<LayerRenderContext> renderer)` | Draws below the chunks and the layers. |
 | `allChunks(boolean all)` | Shows the chunks of all the players. The server accepts it from an operator (permission level 2). |
-| `select(ResourceLocation layer, String marker)` | Shows a marker as selected. |
+| `select(ResourceLocation layer, String marker)` | Shows a marker as selected, and only this marker. |
+| `addSelection(ResourceLocation layer, String marker)` | Adds a marker to the selection. |
+| `removeSelection(ResourceLocation layer, String marker)` | Removes a marker from the selection. |
+| `isSelected(ResourceLocation layer, String marker)` | Tells if a marker is selected. |
 | `clearSelection()` | Shows no marker as selected. |
 
 **Input**

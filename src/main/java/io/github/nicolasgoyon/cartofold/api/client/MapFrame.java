@@ -13,7 +13,9 @@ import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
@@ -110,8 +112,7 @@ public class MapFrame extends AbstractWidget {
     private MarkerClickHandler markerHandler = (layer, marker) -> false;
     private Runnable emptyClick = () -> { };
     private Consumer<View> viewChange = view -> { };
-    @Nullable
-    private MapLabels.Key selected;
+    private final Set<MapLabels.Key> selected = new LinkedHashSet<>();
     private boolean pressed;
     private double pressX;
     private double pressY;
@@ -277,13 +278,37 @@ public class MapFrame extends AbstractWidget {
      * @param marker the identifier of the marker in its layer
      */
     public MapFrame select(ResourceLocation layer, String marker) {
-        this.selected = new MapLabels.Key(layer, marker);
+        selected.clear();
+        selected.add(new MapLabels.Key(layer, marker));
         return this;
+    }
+
+    /**
+     * Adds a marker to the selection: the other selected markers stay selected. For example, a screen marks the two ends
+     * of a route.
+     *
+     * @param layer  the identifier of the layer of the marker
+     * @param marker the identifier of the marker in its layer
+     */
+    public MapFrame addSelection(ResourceLocation layer, String marker) {
+        selected.add(new MapLabels.Key(layer, marker));
+        return this;
+    }
+
+    /** Removes a marker from the selection. */
+    public MapFrame removeSelection(ResourceLocation layer, String marker) {
+        selected.remove(new MapLabels.Key(layer, marker));
+        return this;
+    }
+
+    /** True if a marker is in the selection. */
+    public boolean isSelected(ResourceLocation layer, String marker) {
+        return selected.contains(new MapLabels.Key(layer, marker));
     }
 
     /** Shows no marker as selected. */
     public MapFrame clearSelection() {
-        this.selected = null;
+        selected.clear();
         return this;
     }
 

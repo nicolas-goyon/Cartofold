@@ -4,6 +4,7 @@ import io.github.nicolasgoyon.cartofold.view.LabelLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -28,8 +29,7 @@ public final class MapLabels {
 
     @Nullable
     private final Key hovered;
-    @Nullable
-    private final Key selected;
+    private final Set<Key> selected;
     private final List<Label> priority = new ArrayList<>();
     private final List<Label> others = new ArrayList<>();
 
@@ -37,22 +37,22 @@ public final class MapLabels {
      * Makes the names of one draw.
      *
      * @param hovered  the marker under the mouse, or null
-     * @param selected the selected marker, or null
+     * @param selected the selected markers
      */
-    public MapLabels(@Nullable Key hovered, @Nullable Key selected) {
+    public MapLabels(@Nullable Key hovered, Set<Key> selected) {
         this.hovered = hovered;
-        this.selected = selected;
+        this.selected = Set.copyOf(selected);
     }
 
-    /** True if a marker is the selected marker. */
+    /** True if a marker is a selected marker. */
     public boolean selected(ResourceLocation layer, String marker) {
-        return selected != null && selected.equals(new Key(layer, marker));
+        return selected.contains(new Key(layer, marker));
     }
 
     /** Adds the name of a marker of a layer, with its center at the top of the point. */
     public void add(ResourceLocation layer, String marker, Component name, double x, double y) {
         Key key = new Key(layer, marker);
-        add(name, x, y, Objects.equals(key, hovered) || Objects.equals(key, selected));
+        add(name, x, y, Objects.equals(key, hovered) || selected.contains(key));
     }
 
     /**

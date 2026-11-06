@@ -12,6 +12,7 @@ import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
 import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -145,7 +146,8 @@ public final class WorldMapScreen extends Screen {
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
         MapLabels labels = new MapLabels(LayerRenderer.markerAt(dimension, projection, MapViewKind.WORLD_MAP,
-                layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null), selected);
+                layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null),
+                selected == null ? Set.of() : Set.of(selected));
         MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true, labels);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
             WaypointMarkers.renderWorldMap(graphics, dimension, projection,

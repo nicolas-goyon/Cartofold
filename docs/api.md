@@ -239,7 +239,7 @@ protected void init() {
 - `backgroundColor(color)` sets the color of the frame where the map has no chunk.
 - `background(context -> ...)` draws a background of the mod, below the chunks and below the layers. The context has the projection of the frame, as in a layer of the client. Use it for a relief that the mod calculates.
 - `allChunks(true)` shows the chunks that the other players explored, for a screen of an operator (permission level 2). For other players, the server sends only the explored chunks. The server has no map data for the chunks that no player explored: the background shows there. The client counts these chunks as explored until it frees their regions, also for the layers with `onlyExplored = true`.
-- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `clearSelection()` removes the selection.
+- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `addSelection(layer, marker)` adds a marker to the selection, for example the two ends of a route. `removeSelection(layer, marker)` and `clearSelection()` remove markers from the selection.
 
 A click on a clickable marker also posts `MarkerClickEvent` on the server.
 
