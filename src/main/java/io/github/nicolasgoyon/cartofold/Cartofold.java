@@ -8,6 +8,7 @@ import io.github.nicolasgoyon.cartofold.network.CartofoldNetwork;
 import io.github.nicolasgoyon.cartofold.paper.CartofoldItems;
 import io.github.nicolasgoyon.cartofold.paper.CartofoldMapDecorations;
 import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
+import io.github.nicolasgoyon.cartofold.paper.PaperWaypoints;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapSync;
 import io.github.nicolasgoyon.cartofold.server.BannerService;
 import io.github.nicolasgoyon.cartofold.server.ExplorationService;
@@ -53,6 +54,7 @@ public final class Cartofold {
         NeoForge.EVENT_BUS.addListener(LayerService::onServerStopping);
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(LayerService::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(PaperWaypoints::onRightClickBlock);
         NeoForge.EVENT_BUS.addListener(BannerService::onServerStarted);
         NeoForge.EVENT_BUS.addListener(BannerService::onServerStopping);
         NeoForge.EVENT_BUS.addListener(BannerService::onPlayerLoggedIn);

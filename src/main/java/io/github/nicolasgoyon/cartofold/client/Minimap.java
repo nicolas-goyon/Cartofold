@@ -13,6 +13,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -51,7 +52,9 @@ public final class Minimap {
         int y = position[1];
         float partialTick = delta.getGameTimeDeltaPartialTick(false);
         float yaw = player.getViewYRot(partialTick);
-        MapProjection projection = new MapProjection(x, y, size, size, player.getX(), player.getZ(),
+        // The position of this frame: the map, the layers and the waypoints move together between two ticks.
+        Vec3 eye = player.getPosition(partialTick);
+        MapProjection projection = new MapProjection(x, y, size, size, eye.x, eye.z,
                 MinimapLayout.scale(CartofoldClientConfig.MINIMAP_ZOOM.get()),
                 MinimapLayout.mapRotation(rotate, yaw));
         float centerX = x + size / 2f;

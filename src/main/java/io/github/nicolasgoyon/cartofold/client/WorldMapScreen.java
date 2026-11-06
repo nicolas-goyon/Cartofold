@@ -12,6 +12,7 @@ import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
 import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -21,6 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -136,14 +138,16 @@ public final class WorldMapScreen extends Screen {
             onClose();
             return;
         }
-        state.track(player.getX(), player.getZ());
+        Vec3 position = player.getPosition(partialTick);
+        state.track(position.x, position.z);
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(dimension, slice);
         ExplorationRequests.view(this, key, projection.regions());
         graphics.fill(0, 0, width, height, BACKGROUND);
         graphics.flush();
         MapLabels labels = new MapLabels(LayerRenderer.markerAt(dimension, projection, MapViewKind.WORLD_MAP,
-                layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null), selected);
+                layer -> true, mouseX, mouseY).map(LayerRenderer.Hit::key).orElse(null),
+                selected == null ? Set.of() : Set.of(selected));
         MapView.render(graphics, key, projection, MapViewKind.WORLD_MAP, layer -> true, labels);
         if (CartofoldClientConfig.WORLD_MAP_WAYPOINTS.get()) {
             WaypointMarkers.renderWorldMap(graphics, dimension, projection,
@@ -151,7 +155,7 @@ public final class WorldMapScreen extends Screen {
         }
         labels.draw(graphics, font);
         if (player.level().dimension().equals(dimension)) {
-            double[] playerPoint = projection.toScreen(player.getX(), player.getZ());
+            double[] playerPoint = projection.toScreen(position.x, position.z);
             MapShapes.drawArrow(graphics, (float) playerPoint[0], (float) playerPoint[1],
                     (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
         }

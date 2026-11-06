@@ -88,10 +88,17 @@ ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4
         List.of(Component.literal("North village"), Component.literal("Red faction").withColor(0xFF4040)));
 ```
 
+An area can also show only on the chunks that the player explored, with `area.withOnlyExplored(true)`. The other chunks of the area stay dark, as a fog of war, and the border goes around the explored part. The markers and the lines of the layer still show everywhere: `LayerInfo.onlyExplored` hides all the elements of a layer.
+
+```java
+ChunkArea territory = ChunkArea.of("north_village", Level.OVERWORLD, chunks, 0x4000FF00, 0xFF00FF00,
+        Component.literal("North village")).withOnlyExplored(true);
+```
+
 - `LayerInfo.order`: a layer with a higher order draws above the layers with a lower order. The waypoints of the player are above all the layers.
 - `LayerInfo.views`: the kinds of views that show the layer (`MapViewKind.MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`).
 - `LayerInfo.onlyExplored`: the fills, the borders, the lines and the markers show only on the chunks that the player explored. A border shows when one of its two sides is explored. With `false`, the layer also shows on the background of a map frame.
-- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most and 16 lines of tooltip at most, and a line has 4096 points at most.
+- A layer has 4096 areas, 4096 lines and 4096 markers at most. An area has 65 536 chunks at most, an area and a marker have 16 lines of tooltip at most, and a line has 4096 points at most.
 - The player can hide a layer with the "Layers" button of the map of the world.
 
 ### Changes of some elements
@@ -198,6 +205,10 @@ CartofoldWorldMap.at(Level.OVERWORLD, villageX, villageZ)
 
 The game calls `init()` of the screen of the mod again when the map closes: keep the state of the screen in its fields. The server sends the chunks of the dimension of the player only. In another dimension, the map shows the chunks that the client has, and the layers.
 
+### Blocks with a use action
+
+A survey map used on a block of a source marks the map, also when the block opens a screen: Cartofold gives this use to the map before the block. The block thus needs no code for the survey maps. The item tag `cartofold:survey_maps` and `PaperMapMarkers.isSurveyMap(stack)` tell if an item is a survey map.
+
 ## Map frames
 
 `MapFrame` is a widget for the screens of the other mods. It shows the explored map, the layers with the kind `MapViewKind.FRAME`, the waypoints and the player.
@@ -223,10 +234,12 @@ protected void init() {
 - `showBox(minX, minZ, maxX, maxZ)` selects the center and the scale that show all of a box of blocks.
 - `onViewChange(view -> ...)` gets the new view when the player moves or zooms the frame.
 - `onEmptyClick(() -> ...)` gets the clicks that hit no marker. A drag of the map is not a click.
+- `handleMarkerClick((layer, marker) -> true)` handles a click on the client and keeps it from the server: the server gets no `MarkerClickEvent` when the function returns true. With false, a clickable marker still sends the event.
+- When the frame has the focus (after a click on the frame, or with Tab), the arrow keys move the view, and `+` and `-` zoom at the center. `interactive(false)` turns the keys off too.
 - `backgroundColor(color)` sets the color of the frame where the map has no chunk.
 - `background(context -> ...)` draws a background of the mod, below the chunks and below the layers. The context has the projection of the frame, as in a layer of the client. Use it for a relief that the mod calculates.
 - `allChunks(true)` shows the chunks that the other players explored, for a screen of an operator (permission level 2). For other players, the server sends only the explored chunks. The server has no map data for the chunks that no player explored: the background shows there. The client counts these chunks as explored until it frees their regions, also for the layers with `onlyExplored = true`.
-- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `clearSelection()` removes the selection.
+- `select(layer, marker)` shows a marker as selected: the marker has a mark, and its name always shows. `addSelection(layer, marker)` adds a marker to the selection, for example the two ends of a route. `removeSelection(layer, marker)` and `clearSelection()` remove markers from the selection.
 
 A click on a clickable marker also posts `MarkerClickEvent` on the server.
 

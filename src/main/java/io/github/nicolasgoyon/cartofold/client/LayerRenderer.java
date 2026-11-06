@@ -14,7 +14,10 @@ import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.view.LayerGeometry;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
+import io.github.nicolasgoyon.cartofold.view.MarkerSizes;
 import io.github.nicolasgoyon.cartofold.waypoint.BannerMark;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -36,10 +39,9 @@ import org.joml.Matrix4f;
 public final class LayerRenderer {
     /** The width of the border of an area, in units of the screen. */
     private static final float BORDER_WIDTH = 1.5f;
-    /** The size of an icon of a marker, in units of the screen. */
-    private static final int ICON_SIZE = 10;
+    /** The side of the textures of the icons in the draw, before the scale of {@link MarkerSizes#icon}. */
+    private static final int ICON_TEXTURE = 10;
     /** The distance in units of the screen to select a marker with the mouse. */
-    private static final double SELECT_DISTANCE = 6;
 
     private LayerRenderer() {
     }
@@ -119,8 +121,10 @@ public final class LayerRenderer {
             if (!area.dimension().equals(dimension)) {
                 continue;
             }
+            // An area of its own with only the explored chunks: its fill and its border follow the explored part.
+            LongSet chunks = area.onlyExplored() ? exploredChunks(area.chunks(), explored) : area.chunks();
             if ((area.fillColor() >>> 24) != 0) {
-                area.chunks().forEach(packed -> {
+                chunks.forEach(packed -> {
                     int chunkX = ChunkPos.getX(packed);
                     int chunkZ = ChunkPos.getZ(packed);
                     int minX = chunkX << 4;
@@ -135,7 +139,7 @@ public final class LayerRenderer {
                 });
             }
             if ((area.borderColor() >>> 24) != 0) {
-                for (int[] side : LayerGeometry.border(area.chunks(), bounds)) {
+                for (int[] side : LayerGeometry.border(chunks, bounds)) {
                     // A side is between a chunk of the area and a chunk out of the area: one of the two is explored.
                     if (onlyExplored && !sideExplored(side, explored)) {
                         continue;
@@ -160,6 +164,7 @@ public final class LayerRenderer {
             }
         }
         MapShapes.draw(buffer);
+        MarkerSizes sizes = CartofoldClientConfig.markerSizes();
         for (MapMarker marker : content.markers()) {
             if (!marker.dimension().equals(dimension) || (onlyExplored && !explored.block(marker.pos()))) {
                 continue;
@@ -173,17 +178,33 @@ public final class LayerRenderer {
                     graphics.setColor(((marker.color() >> 16) & 0xFF) / 255f, ((marker.color() >> 8) & 0xFF) / 255f,
                             (marker.color() & 0xFF) / 255f, 1);
                 }
-                graphics.blit(marker.icon().get(), (int) Math.round(point[0]) - ICON_SIZE / 2,
-                        (int) Math.round(point[1]) - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, 0, 0, 1, 1, 1, 1);
+                // The pose keeps the point with no rounding: the icon stays on its pixel of the map.
+                graphics.pose().pushPose();
+                float scale = (float) (sizes.icon() / ICON_TEXTURE);
+                graphics.pose().translate(point[0], point[1], 0);
+                graphics.pose().scale(scale, scale, 1);
+                graphics.blit(marker.icon().get(), -ICON_TEXTURE / 2, -ICON_TEXTURE / 2, ICON_TEXTURE, ICON_TEXTURE, 0,
+                        0, 1, 1, 1, 1);
+                graphics.pose().popPose();
                 graphics.setColor(1, 1, 1, 1);
             } else {
                 MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], marker.color(), false);
             }
             if (labels != null && projection.contains(point[0], point[1])) {
-                labels.add(content.info().id(), marker.id(), marker.name(), (int) Math.round(point[0]),
-                        (int) Math.round(point[1]) + ICON_SIZE / 2 + 2);
+                labels.add(content.info().id(), marker.id(), marker.name(), point[0], point[1] + sizes.nameOffset());
             }
         }
+    }
+
+    /** The chunks of a set that the player explored. */
+    private static LongSet exploredChunks(LongSet chunks, Explored explored) {
+        LongOpenHashSet result = new LongOpenHashSet();
+        chunks.forEach(packed -> {
+            if (explored.chunk(ChunkPos.getX(packed), ChunkPos.getZ(packed))) {
+                result.add(packed);
+            }
+        });
+        return result;
     }
 
     private static boolean sideExplored(int[] side, Explored explored) {
@@ -210,7 +231,7 @@ public final class LayerRenderer {
     private static Optional<Hit> markerAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY, Predicate<MapMarker> filter) {
         Hit best = null;
-        double bestDistance = SELECT_DISTANCE;
+        double bestDistance = CartofoldClientConfig.markerSizes().hit();
         Explored explored = new Explored(dimension);
         for (LayerContent content : ClientLayers.get().contents()) {
             if (!visible(content.info(), kind) || !layers.test(content.info().id())) {
@@ -250,7 +271,7 @@ public final class LayerRenderer {
             }
             for (ChunkArea area : content.areas().reversed()) {
                 if (!area.tooltip().isEmpty() && area.dimension().equals(dimension)
-                        && area.contains(chunkX, chunkZ)) {
+                        && area.contains(chunkX, chunkZ) && (!area.onlyExplored() || explored.chunk(chunkX, chunkZ))) {
                     return Optional.of(area);
                 }
             }
@@ -265,10 +286,10 @@ public final class LayerRenderer {
      */
     public static List<Component> tooltipAt(ResourceKey<Level> dimension, MapProjection projection, MapViewKind kind,
             Predicate<ResourceLocation> layers, double screenX, double screenY) {
-        Optional<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
-                .flatMap(hit -> hit.marker().tooltip());
-        if (marker.isPresent()) {
-            return List.of(marker.get());
+        List<Component> marker = markerAt(dimension, projection, kind, layers, screenX, screenY)
+                .map(hit -> hit.marker().tooltipLines()).orElse(List.of());
+        if (!marker.isEmpty()) {
+            return marker;
         }
         return areaAt(dimension, projection, kind, layers, screenX, screenY).map(ChunkArea::tooltip)
                 .orElse(List.of());

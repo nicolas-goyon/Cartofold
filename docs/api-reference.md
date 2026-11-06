@@ -87,7 +87,7 @@ ChunkArea.of(id, dimension, chunks, fillColor, borderColor, name, tooltip)
 | `name` | `Component` | The name of the area. |
 | `tooltip` | `List<Component>` | The lines above the area, 16 at most. With no line, the area has no tooltip. |
 
-The getters have the same names. `contains(chunkX, chunkZ)` tells if the area has a chunk.
+The getters have the same names. `contains(chunkX, chunkZ)` tells if the area has a chunk. `withOnlyExplored(true)` gives the same area, shown only on the chunks that the player explored, with a border around this part; `onlyExplored()` reads it.
 
 ### `MapLine`
 
@@ -113,7 +113,7 @@ A marker at a position. A record.
 | `color` | `int` | The color, in RGB: the diamond of a marker with no icon, or a tinted icon. |
 | `icon` | `Optional<ResourceLocation>` | The texture of a square icon, or empty for a diamond. |
 | `name` | `Component` | The name under the marker. An empty text shows no name. |
-| `tooltip` | `Optional<Component>` | The text under the mouse. |
+| `tooltipLines` | `List<Component>` | The lines under the mouse, 16 at most. With no line, the marker has no tooltip. |
 | `clickable` | `boolean` | True to post `MarkerClickEvent` on the server after a click. |
 | `tinted` | `boolean` | True to multiply the pixels of the icon by the color. |
 
@@ -121,6 +121,10 @@ A marker at a position. A record.
 | --- | --- |
 | `MapMarker.of(id, dimension, pos, color, name)` | A diamond with no tooltip and no click. |
 | `MapMarker.tinted(id, dimension, pos, color, icon, name)` | An icon in the color of the marker, with no tooltip and no click. |
+| `withTooltip(List<Component> lines)` | The same marker with other lines of tooltip. |
+| `withClick(boolean click)` | The same marker, clickable or not. |
+
+The constructors with an `Optional<Component> tooltip` stay: they give a tooltip of one line. `tooltip()` gives the first line.
 
 A constructor without `tinted` keeps the colors of the icon.
 
@@ -142,7 +146,9 @@ Cartofold posts this event on `NeoForge.EVENT_BUS`, on the server thread. It com
 
 ### `PaperMapMarkers`
 
-`PaperMapMarkers.register(PaperMarkerSource source)` adds a source of waypoints. Call it once, in the setup of the mod. A source with the identifier of another source replaces it.
+`PaperMapMarkers.register(PaperMarkerSource source)` adds a source of waypoints. Call it once, in the setup of the mod. A source with the identifier of another source replaces it. A survey map on a block of a source marks the map before the use action of the block.
+
+`PaperMapMarkers.isSurveyMap(ItemStack stack)` tells if an item has the tag `PaperMapMarkers.SURVEY_MAPS` (`cartofold:survey_maps`).
 
 ### `PaperMarkerSource`
 
@@ -197,7 +203,10 @@ new MapFrame(int x, int y, int width, int height)
 | `backgroundColor(int color)` | The color where the map has no chunk, in ARGB. |
 | `background(Consumer<LayerRenderContext> renderer)` | Draws below the chunks and the layers. |
 | `allChunks(boolean all)` | Shows the chunks of all the players. The server accepts it from an operator (permission level 2). |
-| `select(ResourceLocation layer, String marker)` | Shows a marker as selected. |
+| `select(ResourceLocation layer, String marker)` | Shows a marker as selected, and only this marker. |
+| `addSelection(ResourceLocation layer, String marker)` | Adds a marker to the selection. |
+| `removeSelection(ResourceLocation layer, String marker)` | Removes a marker from the selection. |
+| `isSelected(ResourceLocation layer, String marker)` | Tells if a marker is selected. |
 | `clearSelection()` | Shows no marker as selected. |
 
 **Input**
@@ -206,8 +215,10 @@ new MapFrame(int x, int y, int width, int height)
 | --- | --- |
 | `interactive(boolean interactive)` | Allows the moves, the zoom and the clicks. On by default. |
 | `onMarkerClick(MarkerClickListener listener)` | Gets `(ResourceLocation layer, String marker)` after a click on a marker, on the client. |
+| `handleMarkerClick(MarkerClickHandler handler)` | Gets `(ResourceLocation layer, String marker)` after a click on a marker, on the client. Return true to keep the click from the server. |
 | `onEmptyClick(Runnable listener)` | Gets the clicks that hit no marker. |
 | `onViewChange(Consumer<MapFrame.View> listener)` | Gets the view after a move or a zoom of the player. |
+| Keys | With the focus (a click on the frame, or Tab), the arrow keys move the view, and `+` and `-` zoom. |
 
 **Other**
 

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -58,7 +59,9 @@ public final class ApiExamples {
                 0xFFFF4040, // the border, in ARGB
                 Component.literal("North village"),
                 List.of(Component.literal("North village"),
-                        Component.literal("Red faction").withColor(FACTION_COLOR)));
+                        Component.literal("Red faction").withColor(FACTION_COLOR)))
+                // The territory shows only where the player explored, as a fog of war.
+                .withOnlyExplored(true);
 
         MapLine road = new MapLine("north_road", Level.OVERWORLD, List.of(heart, gate), 0xFFE0C080, 2);
 
@@ -76,9 +79,11 @@ public final class ApiExamples {
         LayerInfo info = new LayerInfo(layer, Component.literal("Quest"), 20,
                 Set.of(MapViewKind.WORLD_MAP, MapViewKind.FRAME), false);
 
-        MapMarker marker = new MapMarker("target", player.level().dimension(), target, 0xFFD020,
-                Optional.of(MarkerShapes.CROSS), Component.literal("Target"),
-                Optional.of(Component.literal("Click to open the quest")), true, true);
+        MapMarker marker = MapMarker.tinted("target", player.level().dimension(), target, 0xFFD020,
+                MarkerShapes.CROSS, Component.literal("Target"))
+                .withTooltip(List.of(Component.literal("Find the lost map"),
+                        Component.literal("Click to open the quest").withStyle(ChatFormatting.GRAY)))
+                .withClick(true);
 
         CartofoldLayers.set(player, new LayerContent(info, List.of(), List.of(), List.of(marker)));
     }
@@ -170,7 +175,11 @@ public final class ApiExamples {
                     .layers(layer -> layer.getNamespace().equals("mymod"))
                     .showWaypoints(false)
                     .onViewChange(view -> savedView = view)
-                    .onMarkerClick((layer, marker) -> select(layer, marker))
+                    .handleMarkerClick((layer, marker) -> {
+                        select(layer, marker);
+                        // The journal handles the click: the server gets no MarkerClickEvent.
+                        return true;
+                    })
                     .onEmptyClick(this::clearSelection));
             if (savedView != null) {
                 frame.view(savedView);
