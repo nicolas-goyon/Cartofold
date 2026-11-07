@@ -38,6 +38,20 @@ class ExploredMaskTest {
         assertEquals(512 * 16, mask.count());
     }
 
+    /** A change after the copy does not change the copy. */
+    @Test
+    void copyKeepsTheBitsOfItsTime() {
+        ExploredMask mask = new ExploredMask(POS);
+        mask.markChunk(-1, -1);
+
+        ExploredMask copy = mask.copy();
+        mask.markChunk(-2, -1);
+
+        assertTrue(copy.isChunkExplored(-1, -1));
+        assertFalse(copy.isChunkExplored(-2, -1));
+        assertFalse(copy.isDirty());
+    }
+
     @Test
     void chunkOutOfTheRegion() {
         ExploredMask mask = new ExploredMask(POS);

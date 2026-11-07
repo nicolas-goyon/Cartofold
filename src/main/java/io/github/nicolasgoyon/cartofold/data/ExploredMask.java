@@ -86,6 +86,13 @@ public final class ExploredMask {
         return count;
     }
 
+    /** A copy of the bits of the mask, for a write on another thread. The copy is not dirty. */
+    public ExploredMask copy() {
+        ExploredMask copy = new ExploredMask(pos);
+        System.arraycopy(bits, 0, copy.bits, 0, bits.length);
+        return copy;
+    }
+
     /** True if the mask changed since the last save. */
     public boolean isDirty() {
         return dirty;

@@ -106,8 +106,10 @@ public final class MapRegion {
                 }
             }
         }
-        sampled[chunkIndex(chunkX, chunkZ)] = time;
-        dirty = true;
+        int chunk = chunkIndex(chunkX, chunkZ);
+        // A new time with the same columns needs no save: after a restart, the chunk only gets its next sample sooner.
+        dirty |= changed || sampled[chunk] == NEVER;
+        sampled[chunk] = time;
         return changed;
     }
 
@@ -124,6 +126,16 @@ public final class MapRegion {
             }
         }
         return columns;
+    }
+
+    /** A copy of the data of the region, for a write on another thread. The copy is not dirty. */
+    public MapRegion copy() {
+        MapRegion copy = new MapRegion(pos);
+        System.arraycopy(colors, 0, copy.colors, 0, colors.length);
+        System.arraycopy(heights, 0, copy.heights, 0, heights.length);
+        System.arraycopy(depths, 0, copy.depths, 0, depths.length);
+        System.arraycopy(sampled, 0, copy.sampled, 0, sampled.length);
+        return copy;
     }
 
     /** True if the region changed since the last save. */

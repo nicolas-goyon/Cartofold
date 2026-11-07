@@ -17,7 +17,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - The server records the map colors of the chunks near each player, as the vanilla maps do: the map color of the top block of each column, the depth of the water and the height for the shading.
 - The data is for each player. A later feature can share the exploration in a team.
 - The storage: regions of 512 x 512 blocks, one folder for each dimension, in the folder of the world (`data/cartofold/`). A region file has the colors and the heights of its explored columns, and a mask of the explored columns.
-- Every second, the loaded chunks near each player (the view distance of the server, 12 chunks at most) go to its mask. A chunk with no sample, or with a sample older than 2 minutes, goes to a queue. The server thread reads 8 chunks of the queue at most each tick. The IO threads of the game write the files at each save of the world.
+- Every second, the loaded chunks near each player (the view distance of the server, 12 chunks at most) go to its mask. A chunk with no sample, or with a sample older than 2 minutes, goes to a queue. The server thread reads 8 chunks of the queue at most each tick. At each save of the world, the server thread copies the changed regions and masks. The IO threads of the game compress and write the copies. A sample with the same columns does not change the region, so the region needs no save.
 - A region or a mask with no use for 5 minutes goes out of memory, after its save.
 - The server sends to each client the chunks that the player explored in the regions near the player, and in the regions that a view asks for (the map of the world). After the first send, it sends only the changed chunks. The map data of the chunks that the player did not explore stays on the server.
 - The client keeps 160 regions at most (about 1 MiB each). The regions of the last request stay; the other regions go out, the oldest change first. The server sends a region again when a request has it again.
@@ -28,12 +28,13 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 ### Tiles
 
 - The client makes the textures from the regions: one texture for each region, and textures with less detail for the small scales.
-- A change of a region updates only its textures. A cache keeps the textures near the views and frees the others.
+- A change of a region updates only its textures. A cache keeps the textures near the views and frees the others: the textures with no use for 30 seconds, the textures of the regions that the client no longer has, and the oldest textures over 64 MiB.
 
 ### Map view
 
 - A view draws the tiles in a rectangle of the screen, with a center, a scale and a rotation. The projection gives the pixel of a block and the block of a pixel.
 - The view then draws the layers, in their order, and the markers.
+- The client keeps the shape of each area: its chunks as rows, and its border as long lines. The shape changes only with the layers, or with the exploration for an area with only the explored chunks. A marker out of the view has no draw. The markers of a layer have one draw for the shapes, and one draw for each texture of icon.
 - The minimap, the map of the world, the paper maps and the map frames use the same view.
 
 ## Views
@@ -65,7 +66,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 - **Markers of blocks**: a player marks a place on a survey map from a block, as with a banner on a vanilla map: a use of the map on the block adds a marker with an icon and a name, and a second use removes it. The banners (with their colors and their names) and the lodestone (the pin `cartofold:waypoint`) are sources of Cartofold. Another mod adds its own blocks with `PaperMapMarkers` (for example the heart of a village of Folkhold). A marker of a block that changes goes away from the map.
 - **Cartography table**: the table works with the survey maps as the vanilla table with the vanilla maps. A paper zooms a map out, a glass pane locks a copy, and an empty survey map gives a copy. With a survey map and a paper, the buttons of the screen select:
   - a move of the map by half of its side to the north, the south, the west or the east (the game puts the center of a map on a fixed grid). The moved map is a new map with the same scale and the explored pixels in their new places;
-  - an update of the map at a distance: when the player takes the map, the server paints its pixels from the chunks that are already generated, 1024 chunks at most (the chunks with unexplored pixels first) and 4 chunks each tick. The paper is the cost.
+  - an update of the map at a distance: when the player takes the map, the server paints its pixels from the chunks that are already generated, 1024 chunks at most (the chunks with unexplored pixels first) and 4 chunks each tick. A chunk that is not loaded loads from the disk with a ticket, and the server thread does not wait for it. The paper is the cost.
   - the zoom. The same button again also selects the zoom. A locked map does not zoom, move, update or lock again.
 - **Screen of the table**: the client puts its own screen in place of the vanilla screen of the table. With a vanilla map or with no map, this screen is the vanilla screen. With a survey map, it shows the buttons of the moves between the slots, and a panel at the right: the action, a large preview of the result, the cost (the item that the table uses), the zoom and update buttons, and the reason when there is no result. The client and the server use the same rules for the result (`SurveyTableOutcome`). The screen of another mod for the table stays in place: then the survey maps have no buttons.
 - The server sends to a player the survey maps of its inventory, of its open menu and of the item frames within 64 blocks.

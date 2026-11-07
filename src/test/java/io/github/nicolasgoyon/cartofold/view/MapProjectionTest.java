@@ -23,6 +23,17 @@ class MapProjectionTest {
 
     private static final double EPSILON = 1e-9;
 
+    /** A point near the rectangle, in the margin, counts: a marker there is partly visible. */
+    @Test
+    void containsWithAMarginTellsThePointsNearTheRectangle() {
+        MapProjection projection = MapProjection.north(10, 20, 100, 50, 0, 0, 1);
+
+        assertTrue(projection.contains(5, 20, 5));
+        assertTrue(projection.contains(115, 75, 5));
+        assertFalse(projection.contains(4, 30, 5));
+        assertFalse(projection.contains(50, 76, 5));
+    }
+
     @Test
     void centerOfTheRectangleShowsTheCenterBlock() {
         MapProjection projection = MapProjection.north(10, 20, 100, 60, 1000.5, -300.5, 2);

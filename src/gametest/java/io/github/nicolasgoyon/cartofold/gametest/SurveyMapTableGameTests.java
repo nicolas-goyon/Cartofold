@@ -10,6 +10,7 @@ import io.github.nicolasgoyon.cartofold.paper.SurveyMapId;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapItem;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
@@ -23,6 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
 import net.minecraft.world.item.component.MapPostProcessing;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
@@ -179,6 +181,43 @@ public final class SurveyMapTableGameTests {
         helper.succeedWhen(() -> {
             helper.assertFalse(MapUpdates.running(id), "The update must end");
             helper.assertTrue(data.colors()[px + pz * MapMoves.SIZE] != 0, "The pixel of the table has a color");
+        });
+    }
+
+    /**
+     * The update paints a generated chunk that is not loaded: the chunk loads from the disk, with no wait. After the
+     * update, the chunk unloads again.
+     */
+    @GameTest(template = "empty", timeoutTicks = 1200)
+    public static void updateLoadsAChunkFromTheDisk(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        // A chunk far from the tests and from the players: nothing else keeps it loaded.
+        ChunkPos chunk = new ChunkPos(20_000, 20_000);
+        level.getChunk(chunk.x, chunk.z);
+        int blockX = chunk.getMiddleBlockX();
+        int blockZ = chunk.getMiddleBlockZ();
+        ItemStack map = SurveyMapItem.create(level.getServer(),
+                SurveyMapData.around(level.dimension(), blockX, blockZ, 0));
+        SurveyMapData data = data(helper, map);
+        SurveyMapId id = SurveyMapItem.id(map);
+        int pixel = data.geometry().pixelX(blockX) + data.geometry().pixelZ(blockZ) * MapMoves.SIZE;
+        AtomicBoolean started = new AtomicBoolean();
+        AtomicBoolean painted = new AtomicBoolean();
+        helper.onEachTick(() -> {
+            boolean unloaded = level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null;
+            if (!started.get() && unloaded) {
+                MapUpdates.start(level, id, data);
+                started.set(true);
+            } else if (started.get() && !painted.get() && !MapUpdates.running(id)) {
+                painted.set(true);
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(painted.get(), "The update must end");
+            helper.assertTrue(data.colors()[pixel] != 0, "The pixel of the chunk has a color");
+            // With no ticket of the update, nothing keeps the chunk loaded.
+            helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null,
+                    "The chunk must unload after the update");
         });
     }
 

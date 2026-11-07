@@ -50,6 +50,44 @@ class MapRegionTest {
         assertTrue(region.isDirty());
     }
 
+    /** A sample with the same columns changes only the time: the region needs no new save. */
+    @Test
+    void sameSampleNeedsNoSave() {
+        MapRegion region = new MapRegion(POS);
+        region.put(-3, 70, columns(12, 64), 100L);
+        region.setSaved();
+
+        assertFalse(region.put(-3, 70, columns(12, 64), 200L));
+
+        assertFalse(region.isDirty());
+    }
+
+    /** The first sample needs a save, also with columns of no color. */
+    @Test
+    void firstSampleNeedsASave() {
+        MapRegion region = new MapRegion(POS);
+
+        region.put(-3, 70, ChunkColumns.empty(), 100L);
+
+        assertTrue(region.isDirty());
+    }
+
+    /** A change after the copy does not change the copy. */
+    @Test
+    void copyKeepsTheDataOfItsTime() {
+        MapRegion region = new MapRegion(POS);
+        region.put(-3, 70, columns(12, 64), 100L);
+
+        MapRegion copy = region.copy();
+        region.put(-3, 70, columns(20, 80), 200L);
+
+        assertEquals(12, copy.color(-48, 1120));
+        assertEquals(64, copy.height(-48, 1120));
+        assertEquals(3, copy.depth(-48, 1120));
+        assertEquals(100L, copy.sampled(-3, 70));
+        assertFalse(copy.isDirty());
+    }
+
     @Test
     void chunkOutOfTheRegion() {
         MapRegion region = new MapRegion(POS);
