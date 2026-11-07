@@ -57,8 +57,8 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  *       {@link ColumnSampler}).</li>
  *   <li>The regions and the masks are in memory while the players use them. A region or a mask with no use for
  *       {@link #UNLOAD_TICKS} ticks goes out of memory, after its save.</li>
- *   <li>The save of the world writes the changed regions and masks on the IO threads of the game. The stop of the
- *       server writes them before the end.</li>
+ *   <li>The save of the world copies the changed regions and masks on the server thread, then compresses and writes
+ *       the copies on the IO threads of the game. The stop of the server writes them before the end.</li>
  *   <li>A player in a cave (see {@link #underground}: under the top of its column, in the dark) also explores the band of caves of its height (see
  *       {@link MapSlice}), within {@link #CAVE_RADIUS} chunks.</li>
  *   <li>The service sends the explored chunks to the clients (see {@link ExplorationSync}).</li>
@@ -470,16 +470,18 @@ public final class ExplorationService {
             for (Used<MapRegion> used : entry.getValue().regions.values()) {
                 if (used.value.isDirty()) {
                     used.value.setSaved();
-                    writes.add(write(storage.regionFile(level, used.value.pos()), () -> ExplorationStorage
-                            .bytes(used.value), used.value::markDirty));
+                    MapRegion copy = used.value.copy();
+                    writes.add(write(storage.regionFile(level, copy.pos()), () -> ExplorationStorage.bytes(copy),
+                            used.value::markDirty));
                 }
             }
             for (Map.Entry<UUID, Map<RegionPos, Used<ExploredMask>>> player : entry.getValue().masks.entrySet()) {
                 for (Used<ExploredMask> used : player.getValue().values()) {
                     if (used.value.isDirty()) {
                         used.value.setSaved();
-                        writes.add(write(storage.maskFile(level, player.getKey(), used.value.pos()),
-                                () -> ExplorationStorage.bytes(used.value), used.value::markDirty));
+                        ExploredMask copy = used.value.copy();
+                        writes.add(write(storage.maskFile(level, player.getKey(), copy.pos()),
+                                () -> ExplorationStorage.bytes(copy), used.value::markDirty));
                     }
                 }
             }
@@ -489,31 +491,23 @@ public final class ExplorationService {
         }
     }
 
-    /** The content of a file, from the server thread. */
+    /** The content of a file. It runs on an IO thread, so it reads only a copy of the data. */
     @FunctionalInterface
     private interface Content {
         byte[] bytes() throws IOException;
     }
 
     /**
-     * Takes the content on the server thread, then writes it on an IO thread. The writes of one file run in their
-     * order, after the previous write of this file.
+     * Compresses and writes the content on an IO thread: the server thread does not wait for the compression. The
+     * writes of one file run in their order, after the previous write of this file.
      *
      * @param failed runs on the server thread when the write fails: the data must be saved again
      */
     private CompletableFuture<Void> write(Path file, Content content, Runnable failed) {
-        byte[] bytes;
-        try {
-            bytes = content.bytes();
-        } catch (IOException e) {
-            Cartofold.LOGGER.error("The exploration data {} cannot be written", file, e);
-            failed.run();
-            return CompletableFuture.completedFuture(null);
-        }
         CompletableFuture<Void> next = fileWrites.getOrDefault(file, CompletableFuture.completedFuture(null))
                 .thenRunAsync(() -> {
                     try {
-                        ExplorationStorage.write(file, bytes);
+                        ExplorationStorage.write(file, content.bytes());
                     } catch (IOException e) {
                         Cartofold.LOGGER.error("The exploration data {} cannot be written", file, e);
                         server.execute(failed);
