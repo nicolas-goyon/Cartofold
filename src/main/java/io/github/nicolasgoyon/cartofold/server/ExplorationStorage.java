@@ -44,7 +44,12 @@ public final class ExplorationStorage {
     private Path folder(ExplorationKey key) {
         ResourceLocation id = key.dimension().location();
         Path dimension = root.resolve(id.getNamespace()).resolve(id.getPath());
-        return key.slice().surface() ? dimension : dimension.resolve(key.slice().folder());
+        Path folder = key.slice().surface() ? dimension : dimension.resolve(key.slice().folder());
+        // A key with ".." must not reach a file out of the folder of the mod.
+        if (!folder.normalize().startsWith(root.normalize())) {
+            throw new IllegalArgumentException("The exploration key " + key + " is not a valid folder");
+        }
+        return folder;
     }
 
     /** The file of the map data of a region. */

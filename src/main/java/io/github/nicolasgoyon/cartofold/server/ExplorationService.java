@@ -82,6 +82,8 @@ public final class ExplorationService {
     public static final int SAMPLES_PER_TICK = 8;
     /** A region or a mask with no use for this number of ticks goes out of memory. */
     public static final long UNLOAD_TICKS = 20L * 60L * 5L;
+    /** The server applies one request of the regions of a player every this number of ticks at most. */
+    public static final int REQUEST_TICKS = 10;
 
     @Nullable
     private static ExplorationService instance;
@@ -90,6 +92,10 @@ public final class ExplorationService {
     private final ExplorationStorage storage;
     private final Map<ExplorationKey, LevelData> levels = new HashMap<>();
     private final ExplorationSync sync = new ExplorationSync(this);
+    /** The last request of each player that waits for {@link #applyRequests}. */
+    private final Map<UUID, ExplorationRequestPayload> requests = new HashMap<>();
+    /** The game time of the last applied request of each player. */
+    private final Map<UUID, Long> lastRequests = new HashMap<>();
 
     /** The data of one slice of a dimension. */
     private static final class LevelData {
@@ -148,6 +154,7 @@ public final class ExplorationService {
     public static void onServerTick(ServerTickEvent.Post event) {
         if (instance != null) {
             instance.tick();
+            instance.applyRequests();
             instance.send();
         }
     }
@@ -155,12 +162,16 @@ public final class ExplorationService {
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (instance != null) {
             instance.sync.remove(event.getEntity().getUUID());
+            instance.requests.remove(event.getEntity().getUUID());
+            instance.lastRequests.remove(event.getEntity().getUUID());
         }
     }
 
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (instance != null) {
             instance.sync.remove(event.getEntity().getUUID());
+            instance.requests.remove(event.getEntity().getUUID());
+            instance.lastRequests.remove(event.getEntity().getUUID());
         }
     }
 
@@ -172,9 +183,38 @@ public final class ExplorationService {
      */
     public static void onRequest(ExplorationRequestPayload payload, IPayloadContext context) {
         if (instance != null && context.player() instanceof ServerPlayer player) {
-            instance.sync.request(player.getUUID(), payload.dimension(), payload.slices(), instance.now(),
-                    payload.allChunks() && player.hasPermissions(ALL_CHUNKS_PERMISSION));
+            // The last request waits for the next tick of the requests: a flood of requests costs one request.
+            instance.requests.put(player.getUUID(), payload);
         }
+    }
+
+    /** Applies the waiting requests, one for each player every {@link #REQUEST_TICKS} ticks at most. */
+    private void applyRequests() {
+        long now = now();
+        Iterator<Map.Entry<UUID, ExplorationRequestPayload>> iterator = requests.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, ExplorationRequestPayload> entry = iterator.next();
+            if (now - lastRequests.getOrDefault(entry.getKey(), Long.MIN_VALUE / 2) < REQUEST_TICKS) {
+                continue;
+            }
+            iterator.remove();
+            ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+            ServerLevel level = server.getLevel(entry.getValue().dimension());
+            // The server refuses the dimensions that it does not have: no file path and no data come from them.
+            if (player == null || level == null) {
+                continue;
+            }
+            lastRequests.put(entry.getKey(), now);
+            List<ExplorationRequestPayload.SliceRegions> slices = entry.getValue().slices().stream()
+                    .filter(slice -> validSlice(level, slice.slice())).toList();
+            sync.request(player.getUUID(), level.dimension(), slices, now,
+                    entry.getValue().allChunks() && player.hasPermissions(ALL_CHUNKS_PERMISSION));
+        }
+    }
+
+    /** True if a slice is the surface, or a band of caves in the height of a level. */
+    public static boolean validSlice(Level level, MapSlice slice) {
+        return slice.surface() || (slice.minY() >= level.getMinBuildHeight() && slice.maxY() <= level.getMaxBuildHeight());
     }
 
     /** The data that the server sends to the clients. */
@@ -330,6 +370,62 @@ public final class ExplorationService {
                 load(() -> storage.readRegion(key, region), () -> new MapRegion(region), region), now));
         used.lastUse = now;
         return used.value;
+    }
+
+    /**
+     * The map data of a region, from the memory or from the disk, or null when the region has no file and is not in the
+     * memory. This method creates no new region: a request of the client cannot fill the memory with empty regions.
+     */
+    @Nullable
+    public MapRegion existingRegion(ExplorationKey key, RegionPos pos, long now) {
+        LevelData data = levels.get(key);
+        Used<MapRegion> used = data == null ? null : data.regions.get(pos);
+        if (used == null) {
+            Optional<MapRegion> stored = read(() -> storage.readRegion(key, pos), pos);
+            if (stored.isEmpty()) {
+                return null;
+            }
+            used = new Used<>(stored.get(), now);
+            data(key).regions.put(pos, used);
+        }
+        used.lastUse = now;
+        return used.value;
+    }
+
+    /**
+     * The explored columns of a region for a player, from the memory or from the disk, or null when the player has no
+     * explored column in this region. This method creates no new mask.
+     */
+    @Nullable
+    public ExploredMask existingMask(ExplorationKey key, UUID player, RegionPos pos, long now) {
+        LevelData data = levels.get(key);
+        Map<RegionPos, Used<ExploredMask>> masks = data == null ? null : data.masks.get(player);
+        Used<ExploredMask> used = masks == null ? null : masks.get(pos);
+        if (used == null) {
+            Optional<ExploredMask> stored = read(() -> storage.readMask(key, player, pos), pos);
+            if (stored.isEmpty()) {
+                return null;
+            }
+            used = new Used<>(stored.get(), now);
+            data(key).masks.computeIfAbsent(player, ignored -> new HashMap<>()).put(pos, used);
+        }
+        used.lastUse = now;
+        return used.value.count() == 0 ? null : used.value;
+    }
+
+    /** The number of regions of a slice in the memory, for the tests and the diagnostics. */
+    public int loadedRegions(ExplorationKey key) {
+        LevelData data = levels.get(key);
+        return data == null ? 0 : data.regions.size();
+    }
+
+    private static <T> Optional<T> read(Reader<T> reader, RegionPos pos) {
+        try {
+            return reader.read();
+        } catch (IOException e) {
+            Cartofold.LOGGER.error("The exploration data of the region {} is not valid", pos, e);
+            return Optional.empty();
+        }
     }
 
     /** The explored columns of a region of the surface for a player, from the memory or from the disk. */
