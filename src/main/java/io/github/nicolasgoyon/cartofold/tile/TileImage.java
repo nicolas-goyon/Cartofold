@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.tile;
 
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 import net.minecraft.world.level.material.MapColor;
 
@@ -43,12 +44,28 @@ public final class TileImage {
      * @return the pixels in ABGR
      */
     public static int[] render(MapRegion region, @Nullable MapRegion north, int lod) {
+        return render(region, north, lod, new int[size(lod) * size(lod)]);
+    }
+
+    /**
+     * Makes the pixels of a region in an array: the same array can serve for all the regions.
+     *
+     * @param region the region
+     * @param north  the region to the north, for the shade of the first row, or null
+     * @param lod    the level of detail
+     * @param pixels the array of the pixels, with a length of {@code size(lod) * size(lod)} or more
+     * @return the array of the pixels, in ABGR
+     */
+    public static int[] render(MapRegion region, @Nullable MapRegion north, int lod, int[] pixels) {
         int size = size(lod);
         int cell = 1 << lod;
         int half = cell / 2;
         int minX = region.pos().minBlockX();
         int minZ = region.pos().minBlockZ();
-        int[] pixels = new int[size * size];
+        if (pixels.length < size * size) {
+            throw new IllegalArgumentException("The array has " + pixels.length + " pixels, not " + size * size);
+        }
+        Arrays.fill(pixels, 0, size * size, 0);
         for (int z = 0; z < size; z++) {
             int blockZ = minZ + z * cell + half;
             for (int x = 0; x < size; x++) {

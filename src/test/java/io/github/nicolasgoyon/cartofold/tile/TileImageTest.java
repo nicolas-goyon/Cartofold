@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold.tile;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -77,5 +78,22 @@ class TileImageTest {
         assertEquals(MapColor.SAND.calculateRGBColor(MapColor.Brightness.NORMAL), pixels[0]);
         assertEquals(0, pixels[2]);
         assertThrows(IllegalArgumentException.class, () -> TileImage.size(TileImage.LODS));
+    }
+
+    /** An array that served for another region gives the same pixels as a new array. */
+    @Test
+    void reusedArrayGivesTheSamePixels() {
+        MapRegion full = new MapRegion(new RegionPos(0, 0));
+        MapRegion empty = new MapRegion(new RegionPos(0, 0));
+        ChunkColumns columns = ChunkColumns.empty();
+        Arrays.fill(columns.colors(), (byte) MapColor.GRASS.id);
+        full.put(0, 0, columns, 1L);
+        empty.put(1, 1, ChunkColumns.empty(), 1L);
+        int[] pixels = new int[TileImage.size(0) * TileImage.size(0)];
+
+        TileImage.render(full, null, 0, pixels);
+        TileImage.render(empty, null, 0, pixels);
+
+        assertArrayEquals(TileImage.render(empty, null, 0), pixels);
     }
 }

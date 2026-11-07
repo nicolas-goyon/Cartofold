@@ -28,7 +28,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 ### Tiles
 
 - The client makes the textures from the regions: one texture for each region, and textures with less detail for the small scales.
-- A change of a region updates only its textures. A cache keeps the textures near the views and frees the others.
+- A change of a region updates only its textures. A cache keeps the textures near the views and frees the others: the textures with no use for 30 seconds, the textures of the regions that the client no longer has, and the oldest textures over 64 MiB.
 
 ### Map view
 
