@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.Util;
 import net.minecraft.server.MinecraftServer;
@@ -37,12 +38,18 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * IO thread of the game and sends the list to the client.
  */
 public final class WaypointService {
+    /** The largest number of changes of waypoints of a player in one second. */
+    public static final int ACTIONS_PER_SECOND = 10;
+
     @Nullable
     private static WaypointService instance;
 
     private final Path root;
     private final Map<UUID, List<Waypoint>> players = new HashMap<>();
     private CompletableFuture<Void> writes = CompletableFuture.completedFuture(null);
+    /** The last bytes of each file that wait for their write. */
+    private final Map<Path, byte[]> pendingWrites = new ConcurrentHashMap<>();
+    private final ActionLimiter limiter = new ActionLimiter(ACTIONS_PER_SECOND, 20);
 
     WaypointService(Path root) {
         this.root = root;
@@ -75,6 +82,7 @@ public final class WaypointService {
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (instance != null) {
             instance.players.remove(event.getEntity().getUUID());
+            instance.limiter.remove(event.getEntity().getUUID());
         }
     }
 
@@ -92,11 +100,27 @@ public final class WaypointService {
         }
     }
 
-    /** Applies a change of a waypoint of a player. */
+    /**
+     * Applies a change of a waypoint of a player. The server refuses a waypoint in a dimension that it does not have,
+     * and the actions over {@link #ACTIONS_PER_SECOND} each second. The client cannot make the waypoint of a death: the
+     * server keeps the value that it has.
+     */
     public void apply(ServerPlayer player, WaypointActionPayload payload) {
+        if (!limiter.allow(player.getUUID(), player.server.overworld().getGameTime())) {
+            return;
+        }
         List<Waypoint> waypoints = waypoints(player.getUUID());
-        update(player, payload.remove() ? Waypoints.remove(waypoints, payload.waypoint().id())
-                : Waypoints.set(waypoints, payload.waypoint()));
+        if (payload.remove()) {
+            update(player, Waypoints.remove(waypoints, payload.waypoint().id()));
+            return;
+        }
+        Waypoint waypoint = payload.waypoint();
+        if (!player.server.levelKeys().contains(waypoint.dimension())) {
+            return;
+        }
+        boolean death = waypoints.stream().anyMatch(old -> old.id().equals(waypoint.id()) && old.death());
+        update(player, Waypoints.set(waypoints, new Waypoint(waypoint.id(), waypoint.name(), waypoint.color(),
+                waypoint.dimension(), waypoint.pos(), death)));
     }
 
     /** The waypoints of a player, from the memory or from the disk. */
@@ -128,13 +152,17 @@ public final class WaypointService {
         Path file = file(player.getUUID());
         byte[] bytes = Waypoints.LIST_CODEC.encodeStart(JsonOps.INSTANCE, waypoints).getOrThrow().toString()
                 .getBytes(StandardCharsets.UTF_8);
-        writes = writes.thenRunAsync(() -> {
-            try {
-                ExplorationStorage.write(file, bytes);
-            } catch (IOException e) {
-                Cartofold.LOGGER.error("The waypoints {} cannot be written", file, e);
-            }
-        }, Util.ioPool());
+        // Only the last list of a player waits for the write: many changes in a short time make one write.
+        if (pendingWrites.put(file, bytes) == null) {
+            writes = writes.thenRunAsync(() -> {
+                byte[] last = pendingWrites.remove(file);
+                try {
+                    ExplorationStorage.write(file, last);
+                } catch (IOException e) {
+                    Cartofold.LOGGER.error("The waypoints {} cannot be written", file, e);
+                }
+            }, Util.ioPool());
+        }
         send(player);
     }
 
