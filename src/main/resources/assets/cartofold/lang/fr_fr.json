@@ -139,5 +139,6 @@
   "cartofold.configuration.hud.distances": "Afficher les distances",
   "cartofold.configuration.hud.distances.tooltip": "Afficher les distances des marqueurs.",
   "cartofold.configuration.hud.hidden_layers": "Calques masqués dans le monde",
-  "cartofold.configuration.hud.hidden_layers.tooltip": "Les identifiants des calques qui ne s'affichent pas dans le monde. Les boutons « HUD » de l'écran « Calques » les affichent et les masquent aussi."
+  "cartofold.configuration.hud.hidden_layers.tooltip": "Les identifiants des calques qui ne s'affichent pas dans le monde. Les boutons « HUD » de l'écran « Calques » les affichent et les masquent aussi.",
+  "cartofold.paper.waypoint.full": "La carte est pleine : %s marqueurs au plus. Retirez d'abord un marqueur."
 }

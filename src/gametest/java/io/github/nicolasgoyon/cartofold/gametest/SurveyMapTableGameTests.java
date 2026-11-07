@@ -8,6 +8,7 @@ import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapData;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapId;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapItem;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
 import net.minecraft.world.item.component.MapPostProcessing;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -178,5 +180,40 @@ public final class SurveyMapTableGameTests {
             helper.assertFalse(MapUpdates.running(id), "The update must end");
             helper.assertTrue(data.colors()[px + pz * MapMoves.SIZE] != 0, "The pixel of the table has a color");
         });
+    }
+
+    /** A table in a dimension updates a map of another dimension with the land of the map. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void updateReadsTheDimensionOfTheMap(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(TABLE);
+        ItemStack map = SurveyMapItem.create(helper.getLevel().getServer(),
+                SurveyMapData.around(Level.NETHER, pos.getX(), pos.getZ(), 0));
+
+        ItemStack result = Table.of(helper, map, Items.PAPER, MapMoves.UPDATE).take();
+
+        SurveyMapId id = SurveyMapItem.id(result);
+        helper.assertTrue(MapUpdates.dimension(id).equals(Optional.of(Level.NETHER)),
+                "The update reads the land of the Nether");
+        helper.succeed();
+    }
+
+    /** A shift click on the result with a full inventory does not apply the action. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void fullInventoryKeepsTheAction(GameTestHelper helper) {
+        ItemStack map = map(helper, 0);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.UPDATE);
+        for (int slot = 0; slot < table.player().getInventory().items.size(); slot++) {
+            table.player().getInventory().items.set(slot, new ItemStack(Items.STONE, 64));
+        }
+
+        ItemStack moved = table.menu().quickMoveStack(table.player(), 2);
+
+        helper.assertTrue(moved.isEmpty(), "Nothing moves");
+        helper.assertFalse(MapUpdates.running(SurveyMapItem.id(map)), "No update starts");
+        helper.assertTrue(table.menu().getSlot(0).getItem().getCount() == 2, "The table keeps the maps");
+        helper.assertTrue(table.menu().getSlot(1).getItem().getCount() == 2, "The table keeps the paper");
+        table.menu().removed(table.player());
+        table.player().getInventory().clearContent();
+        helper.succeed();
     }
 }

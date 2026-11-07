@@ -86,6 +86,11 @@ public final class PaperWaypoints {
             return false;
         }
         boolean removed = data.removeMarker(key(pos));
+        if (!removed && data.markers().size() >= SurveyMapData.MAX_MARKERS) {
+            player.displayClientMessage(Component.translatable("cartofold.paper.waypoint.full",
+                    SurveyMapData.MAX_MARKERS), true);
+            return true;
+        }
         if (!removed) {
             data.putMarker(marker(pos, source.get().id(), marker.get()));
         }

@@ -25,7 +25,7 @@ import net.minecraft.world.level.Level;
  */
 public final class SurveyMapPayload implements CustomPacketPayload {
     /** The largest number of markers of a map in a payload. */
-    public static final int MAX_MARKERS = 1024;
+    public static final int MAX_MARKERS = SurveyMapData.MAX_MARKERS;
     private static final int PIXELS = 128 * 128;
 
     public static final Type<SurveyMapPayload> TYPE =

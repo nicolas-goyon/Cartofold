@@ -139,5 +139,6 @@
   "cartofold.configuration.hud.distances": "Show the distances",
   "cartofold.configuration.hud.distances.tooltip": "Show the distances of the markers.",
   "cartofold.configuration.hud.hidden_layers": "Layers hidden in the world",
-  "cartofold.configuration.hud.hidden_layers.tooltip": "The identifiers of the layers that do not show in the world. The \"HUD\" buttons of the \"Layers\" screen also show and hide them."
+  "cartofold.configuration.hud.hidden_layers.tooltip": "The identifiers of the layers that do not show in the world. The \"HUD\" buttons of the \"Layers\" screen also show and hide them.",
+  "cartofold.paper.waypoint.full": "The map is full: %s markers at most. Remove a marker first."
 }

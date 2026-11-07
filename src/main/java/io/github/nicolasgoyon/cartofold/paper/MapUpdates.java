@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.minecraft.core.BlockPos;
@@ -19,8 +20,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.visitors.CollectFields;
 import net.minecraft.nbt.visitors.FieldSelector;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -97,6 +100,11 @@ public final class MapUpdates {
      */
     public static boolean running(SurveyMapId id) {
         return JOBS.stream().anyMatch(job -> job.id.equals(id));
+    }
+
+    /** The dimension that the running update of a map reads, or empty with no update. */
+    public static Optional<ResourceKey<Level>> dimension(SurveyMapId id) {
+        return JOBS.stream().filter(job -> job.id.equals(id)).map(job -> job.level.dimension()).findFirst();
     }
 
     /** The chunks of an update: the chunks with unexplored pixels first, each group from the middle of the map. */
