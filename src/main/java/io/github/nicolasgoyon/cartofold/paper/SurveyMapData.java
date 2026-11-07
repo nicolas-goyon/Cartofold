@@ -29,6 +29,9 @@ import net.minecraft.world.level.saveddata.SavedData;
  * </ul>
  */
 public final class SurveyMapData extends SavedData {
+    /** The largest number of markers of a map: the payload of a map sends this number of markers at most. */
+    public static final int MAX_MARKERS = 1024;
+
     /** The largest scale. */
     public static final int MAX_SCALE = 4;
     private static final int SIZE = PaperMapGeometry.SIZE;

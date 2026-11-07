@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * The cartography table with a survey map (see {@link SurveyMapTable}). The buttons of the screen select a move or the
@@ -31,6 +32,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // Mixin calls the injected methods, and gives them the parameters of the target method.
 @SuppressWarnings({"UnusedMethod", "UnusedVariable"})
 abstract class CartographyTableMenuMixin extends AbstractContainerMenu {
+    @Unique
+    private static final int RESULT_SLOT = 2;
+
     @Shadow
     @Final
     private ContainerLevelAccess access;
@@ -88,5 +92,20 @@ abstract class CartographyTableMenuMixin extends AbstractContainerMenu {
             return true;
         }
         return original.call(stack, item);
+    }
+
+    /**
+     * A shift click on a survey map in the result slot with a full inventory does nothing. Vanilla applies the action
+     * before it moves the result, so the action would run with no use of the map and of the paper.
+     */
+    @Inject(method = "quickMoveStack", at = @At("HEAD"), cancellable = true)
+    private void cartofold$noRoomNoAction(Player player, int index, CallbackInfoReturnable<ItemStack> result) {
+        if (index == RESULT_SLOT) {
+            ItemStack stack = slots.get(RESULT_SLOT).getItem();
+            if (stack.getItem() instanceof SurveyMapItem && !SurveyMapTable.fits(this, stack, RESULT_SLOT + 1,
+                    slots.size())) {
+                result.setReturnValue(ItemStack.EMPTY);
+            }
+        }
     }
 }

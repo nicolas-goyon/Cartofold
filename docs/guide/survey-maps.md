@@ -28,7 +28,9 @@ Use a survey map on a block to add a marker. Use the map on the block again to r
 - **Lodestones**: the marker is a pin.
 - Other mods can add their own blocks.
 
-A marker goes away from the map when its block goes away.
+The map removes a marker when its block goes away.
+
+A map has 1024 markers at most. When the map is full, remove a marker before you add another.
 
 ## Cartography table
 

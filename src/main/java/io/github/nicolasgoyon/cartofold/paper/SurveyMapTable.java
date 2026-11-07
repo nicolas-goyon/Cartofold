@@ -1,6 +1,7 @@
 package io.github.nicolasgoyon.cartofold.paper;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -62,6 +63,26 @@ public final class SurveyMapTable {
     }
 
     /**
+     * True if the inventory slots of a menu can take a result. Vanilla applies the action of the result before it moves
+     * the result to the inventory: with no room, the action must not run.
+     *
+     * @param menu   the menu
+     * @param result the result
+     * @param first  the first slot of the inventory in the menu
+     * @param end    the slot after the last slot of the inventory in the menu
+     */
+    public static boolean fits(AbstractContainerMenu menu, ItemStack result, int first, int end) {
+        for (int index = first; index < end; index++) {
+            ItemStack stack = menu.slots.get(index).getItem();
+            if (stack.isEmpty() || (ItemStack.isSameItemSameComponents(stack, result)
+                    && stack.getCount() + result.getCount() <= stack.getMaxStackSize())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Applies the action of a map that the player takes from the table, and removes the action from the item.
      *
      * @param stack the map
@@ -80,7 +101,11 @@ public final class SurveyMapTable {
             case LOCK -> data.lockedCopy();
             case MOVE_NORTH, MOVE_SOUTH, MOVE_WEST, MOVE_EAST -> MapMoves.moved(data, action.direction());
             case UPDATE -> {
-                MapUpdates.start(level, id, data);
+                // The update reads the land of the dimension of the map, not of the table.
+                ServerLevel mapLevel = level.getServer().getLevel(data.dimension());
+                if (mapLevel != null) {
+                    MapUpdates.start(mapLevel, id, data);
+                }
                 yield null;
             }
         };
