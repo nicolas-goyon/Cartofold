@@ -107,14 +107,21 @@ public final class ExplorationSync {
     }
 
     private void queueRegion(UUID player, ExplorationKey key, Subscription subscription, RegionPos pos, long now) {
-        MapRegion region = service.region(key, pos, now);
-        ExploredMask mask = service.mask(key, player, pos, now);
+        boolean all = allChunks.contains(player);
+        // Read the mask first: a region that the player never explored costs no read of its map data.
+        ExploredMask mask = all ? null : service.existingMask(key, player, pos, now);
+        if (!all && mask == null) {
+            return;
+        }
+        MapRegion region = service.existingRegion(key, pos, now);
+        if (region == null) {
+            return;
+        }
         int minX = pos.x() << MapRegion.CHUNK_SHIFT;
         int minZ = pos.z() << MapRegion.CHUNK_SHIFT;
         for (int z = minZ; z < minZ + MapRegion.CHUNKS; z++) {
             for (int x = minX; x < minX + MapRegion.CHUNKS; x++) {
-                if (region.sampled(x, z) != MapRegion.NEVER && (allChunks.contains(player)
-                        || mask.isChunkExplored(x, z))) {
+                if (region.sampled(x, z) != MapRegion.NEVER && (all || mask.isChunkExplored(x, z))) {
                     subscription.pending.add(new ChunkPos(x, z));
                 }
             }
@@ -129,7 +136,8 @@ public final class ExplorationSync {
     /** Stops the sends of the chunks that a player did not explore: the player is not an operator any more. */
     void revokeAllChunks(UUID player) {
         allChunks.remove(player);
-        subscriptions.getOrDefault(player, Map.of()).values().forEach(subscription -> subscription.pending.clear());
+        // The next request of the client queues its regions again, with only the chunks that the player explored.
+        subscriptions.remove(player);
     }
 
     /** Stops the sends to a player. */

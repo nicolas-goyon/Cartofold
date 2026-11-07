@@ -96,6 +96,11 @@ public final class ExploredMask {
         dirty = false;
     }
 
+    /** Records that the data must be saved again, for example after a failed write. */
+    public void markDirty() {
+        dirty = true;
+    }
+
     /**
      * Writes the mask.
      *

@@ -178,6 +178,7 @@ public final class BannerService {
             return BannerMark.LIST_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(IOException::new);
         } catch (IOException | RuntimeException e) {
             Cartofold.LOGGER.error("The banners {} are not valid: the player has no marked banner", file, e);
+            ExplorationStorage.quarantine(file);
             return List.of();
         }
     }

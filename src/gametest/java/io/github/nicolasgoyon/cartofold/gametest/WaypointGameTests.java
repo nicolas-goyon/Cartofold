@@ -8,10 +8,14 @@ import io.github.nicolasgoyon.cartofold.waypoint.Waypoint;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -47,6 +51,34 @@ public final class WaypointGameTests {
 
         service.apply(player, new WaypointActionPayload(renamed, true));
         helper.assertTrue(service.waypoints(player.getUUID()).size() == 1, "The waypoint goes out of the list");
+        helper.succeed();
+    }
+
+    /** The server refuses a waypoint of an unknown dimension, a false death, and a flood of actions. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void serverChecksTheActionsOfTheClient(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        WaypointService service = WaypointService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_checks"));
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        ResourceKey<Level> unknown = ResourceKey.create(Registries.DIMENSION,
+                ResourceLocation.fromNamespaceAndPath("cartofold_test", "nowhere"));
+
+        service.apply(player, new WaypointActionPayload(new Waypoint(UUID.randomUUID(), "Far", 0xFF0000, unknown, pos,
+                false), false));
+        helper.assertTrue(service.waypoints(player.getUUID()).isEmpty(), "No waypoint in an unknown dimension");
+
+        service.apply(player, new WaypointActionPayload(new Waypoint(UUID.randomUUID(), "", 0xFF0000,
+                level.dimension(), pos, true), false));
+        helper.assertTrue(service.waypoints(player.getUUID()).size() == 1
+                && !service.waypoints(player.getUUID()).getFirst().death(), "The client cannot make a death");
+
+        for (int i = 0; i < WaypointService.ACTIONS_PER_SECOND + 5; i++) {
+            service.apply(player, new WaypointActionPayload(new Waypoint(UUID.randomUUID(), "W" + i, 0xFF0000,
+                    level.dimension(), pos, false), false));
+        }
+        helper.assertTrue(service.waypoints(player.getUUID()).size() <= WaypointService.ACTIONS_PER_SECOND,
+                "The server refuses the actions over the limit");
         helper.succeed();
     }
 }

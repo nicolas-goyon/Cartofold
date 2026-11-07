@@ -1,6 +1,8 @@
 package io.github.nicolasgoyon.cartofold.server;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nicolasgoyon.cartofold.data.ChunkColumns;
@@ -57,5 +59,34 @@ class ExplorationStorageTest {
         assertEquals(9, storage.readRegion(cave, POS).orElseThrow().color(0, -512));
         assertTrue(storage.readRegion(ExplorationKey.surface(Level.OVERWORLD), POS).isEmpty(),
                 "The surface and the caves have their own files");
+    }
+
+    @Test
+    void writeLeavesNoTemporaryFile(@TempDir Path folder) throws IOException {
+        Path file = folder.resolve("a").resolve("r.0.0.dat");
+
+        ExplorationStorage.write(file, new byte[] {1, 2, 3});
+        ExplorationStorage.write(file, new byte[] {4});
+
+        assertArrayEquals(new byte[] {4}, Files.readAllBytes(file));
+        try (var files = Files.list(file.getParent())) {
+            assertEquals(1, files.count());
+        }
+    }
+
+    @Test
+    void quarantineKeepsTheFileOfABadFile(@TempDir Path folder) throws IOException {
+        Path file = folder.resolve("r.0.0.dat");
+        Files.write(file, new byte[] {9});
+
+        ExplorationStorage.quarantine(file);
+        Files.write(file, new byte[] {8});
+        ExplorationStorage.quarantine(file);
+
+        assertFalse(Files.exists(file));
+        assertArrayEquals(new byte[] {9}, Files.readAllBytes(folder.resolve("r.0.0.dat.corrupt")));
+        try (var files = Files.list(folder)) {
+            assertEquals(2, files.count());
+        }
     }
 }

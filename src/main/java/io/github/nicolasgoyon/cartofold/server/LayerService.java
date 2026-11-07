@@ -38,6 +38,10 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * <p>The service keeps the layers that each player has, to accept only the clicks on markers that the player has.
  */
 public final class LayerService {
+    /** The largest number of clicks on markers of a player in one second. */
+    public static final int CLICKS_PER_SECOND = 10;
+
+    private final ActionLimiter clicks = new ActionLimiter(CLICKS_PER_SECOND, 20);
     @Nullable
     private static LayerService instance;
 
@@ -71,20 +75,36 @@ public final class LayerService {
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (instance != null) {
             instance.players.remove(event.getEntity().getUUID());
+            instance.clicks.remove(event.getEntity().getUUID());
         }
     }
 
     /** Receives a click on a marker from a client. */
     public static void onMarkerClick(MarkerClickPayload payload, IPayloadContext context) {
-        if (instance != null && context.player() instanceof ServerPlayer player) {
+        if (instance != null && context.player() instanceof ServerPlayer player
+                && instance.clicks.allow(player.getUUID(), player.server.overworld().getGameTime())) {
             instance.click(player, payload.layer(), payload.marker());
         }
     }
 
     /** Sets a layer for all the players. */
     public void setGlobal(LayerContent content) {
-        global.put(content.info().id(), content);
-        server.getPlayerList().getPlayers().forEach(player -> send(player, content));
+        LayerContent old = global.put(content.info().id(), content);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (hasGlobal(player, content.info().id(), old)) {
+                send(player, content);
+            }
+        }
+    }
+
+    /**
+     * True if a player shows the layer for all the players, or no layer with this identifier. A layer of one player
+     * replaces the layer for all the players: the changes of the layer for all the players do not reach it.
+     */
+    private boolean hasGlobal(ServerPlayer player, ResourceLocation layer, @Nullable LayerContent global) {
+        Map<ResourceLocation, LayerContent> layers = players.get(player.getUUID());
+        LayerContent current = layers == null ? null : layers.get(layer);
+        return current == null || current == global;
     }
 
     /** Changes some elements of a layer for all the players that have this layer. */
@@ -107,8 +127,13 @@ public final class LayerService {
 
     /** Removes a layer for all the players. */
     public void removeGlobal(ResourceLocation layer) {
-        if (global.remove(layer) != null) {
-            server.getPlayerList().getPlayers().forEach(player -> remove(player, layer));
+        LayerContent old = global.remove(layer);
+        if (old != null) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (hasGlobal(player, layer, old)) {
+                    remove(player, layer);
+                }
+            }
         }
     }
 

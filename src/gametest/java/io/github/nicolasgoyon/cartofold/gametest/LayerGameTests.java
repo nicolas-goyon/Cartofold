@@ -95,4 +95,25 @@ public final class LayerGameTests {
         }
         helper.succeed();
     }
+
+    /** A layer for all the players does not replace or remove the layer of one player with the same identifier. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void layerForAllKeepsTheLayerOfAPlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        LayerService service = LayerService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_own_layer"));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("cartofold_test", "shared");
+        LayerContent own = new LayerContent(LayerInfo.of(id, Component.literal("Own"), 0, false), List.of(),
+                List.of(), List.of());
+        LayerContent forAll = new LayerContent(LayerInfo.of(id, Component.literal("All"), 0, false), List.of(),
+                List.of(), List.of());
+        service.send(player, own);
+
+        service.setGlobal(forAll);
+        helper.assertTrue(service.layer(player.getUUID(), id).orElseThrow() == own, "The player keeps its layer");
+        service.removeGlobal(id);
+        helper.assertTrue(service.layer(player.getUUID(), id).orElseThrow() == own, "The player still has its layer");
+        service.remove(player, id);
+        helper.succeed();
+    }
 }
