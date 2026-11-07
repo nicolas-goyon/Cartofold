@@ -34,6 +34,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It gives one map engine 
 
 - A view draws the tiles in a rectangle of the screen, with a center, a scale and a rotation. The projection gives the pixel of a block and the block of a pixel.
 - The view then draws the layers, in their order, and the markers.
+- The client keeps the shape of each area: its chunks as rows, and its border as long lines. The shape changes only with the layers, or with the exploration for an area with only the explored chunks. A marker out of the view has no draw. The markers of a layer have one draw for the shapes, and one draw for each texture of icon.
 - The minimap, the map of the world, the paper maps and the map frames use the same view.
 
 ## Views

@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -21,6 +22,10 @@ public final class ClientLayers {
     private final Map<ResourceLocation, LayerContent> contents = new LinkedHashMap<>();
     private final Map<ResourceLocation, MapLayerRenderer> renderers = new LinkedHashMap<>();
     private long version;
+    /** The layers of the server in their order, for {@link #version}, or null before the first use. */
+    @Nullable
+    private List<LayerContent> sorted;
+    private long sortedVersion = -1;
 
     /** Makes an empty store. The game uses {@link #get()}. */
     public ClientLayers() {
@@ -70,7 +75,13 @@ public final class ClientLayers {
 
     /** The layers of the server, in their order. */
     public synchronized List<LayerContent> contents() {
-        return contents.values().stream().sorted(Comparator.comparingInt(content -> content.info().order())).toList();
+        // The views ask for the layers more than once in each frame: the sorted list stays until the next change.
+        if (sorted == null || sortedVersion != version) {
+            sorted = contents.values().stream().sorted(Comparator.comparingInt(content -> content.info().order()))
+                    .toList();
+            sortedVersion = version;
+        }
+        return sorted;
     }
 
     /** The layers that the mods of the client draw. */
