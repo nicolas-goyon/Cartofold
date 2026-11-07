@@ -35,11 +35,19 @@ The description of a layer. A record.
 | `views` | `Set<MapViewKind>` | The kinds of views that show the layer. |
 | `onlyExplored` | `boolean` | True to show the layer only on the chunks that the player explored. |
 
-`LayerInfo.of(id, name, order, onlyExplored)` makes a layer for all the kinds of views.
+`LayerInfo.of(id, name, order, onlyExplored)` makes a layer for all the kinds of views, `HUD` included.
 
 ### `MapViewKind`
 
-An enum: `MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`. `MapViewKind.all()` gives all the kinds.
+An enum: `MINIMAP`, `WORLD_MAP`, `PAPER`, `FRAME`, `HUD`. `MapViewKind.all()` gives all the kinds.
+
+| Kind | View |
+| --- | --- |
+| `MINIMAP` | The minimap. |
+| `WORLD_MAP` | The map of the world. |
+| `PAPER` | The paper maps in the hands and in the item frames. |
+| `FRAME` | The map frames in the screens of the other mods. |
+| `HUD` | The markers in the world: the screen of the game shows the markers of the layer at their positions. The areas and the lines do not show. A `MapLayerRenderer` does not show in this view. |
 
 ### `LayerContent`
 

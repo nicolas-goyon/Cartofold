@@ -10,6 +10,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It needs no other mod. I
 - **Map of the world** (key M): move, zoom around the mouse, center on the player, the coordinates under the mouse.
 - **Caves**: in a cave, the minimap and the map of the world show the caves at the height of the player, in bands of 16 blocks.
 - **Waypoints**: a name, a color and a position. A death adds a waypoint.
+- **Markers in the world**: the waypoints, the banners and the markers of the other mods show in the world, with their icon, their name and their distance. The settings hide the near and the far markers, and change the opacity and the size.
 - **Banners**: a banner that a player marks on a vanilla map or on a survey map also shows on the minimap and on the map of the world of this player.
 - **Survey maps**: paper maps of their own, with the layers of the other mods. The cartography table zooms, copies, locks, moves and updates them. Banners and lodestones mark them.
 - **Settings**: the settings screen of the client, in English and in French.
@@ -22,6 +23,7 @@ Cartofold is a map mod for Minecraft 1.21.1 (NeoForge). It needs no other mod. I
 | Y | Show or hide the minimap |
 | `[` and `]` | Zoom out and zoom in the minimap |
 | B | Add a waypoint at the player |
+| U | Show or hide the markers in the world |
 
 ## For the authors of mods
 

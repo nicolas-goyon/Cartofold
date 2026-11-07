@@ -28,9 +28,12 @@ public final class CartofoldClientConfig {
         WORLD_MAP,
         BOTH;
 
-        /** True if a kind of view shows the markers of the banners. */
+        /**
+         * True if a kind of view shows the markers of the banners. The markers in the world do not use this setting:
+         * the setting {@code hud.hiddenLayers} hides them.
+         */
         public boolean shows(MapViewKind kind) {
-            return this == BOTH || (this == MINIMAP && kind == MapViewKind.MINIMAP)
+            return this == BOTH || kind == MapViewKind.HUD || (this == MINIMAP && kind == MapViewKind.MINIMAP)
                     || (this == WORLD_MAP && kind == MapViewKind.WORLD_MAP);
         }
 
@@ -56,6 +59,16 @@ public final class CartofoldClientConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends String>> HIDDEN_LAYERS;
     public static final ModConfigSpec.EnumValue<BannerViews> BANNER_VIEWS;
     public static final ModConfigSpec.DoubleValue MARKER_SCALE;
+    public static final ModConfigSpec.BooleanValue HUD;
+    public static final ModConfigSpec.BooleanValue HUD_WAYPOINTS;
+    public static final ModConfigSpec.IntValue HUD_MIN_DISTANCE;
+    public static final ModConfigSpec.IntValue HUD_MAX_DISTANCE;
+    public static final ModConfigSpec.IntValue HUD_OPACITY;
+    public static final ModConfigSpec.DoubleValue HUD_HEIGHT;
+    public static final ModConfigSpec.DoubleValue HUD_SCALE;
+    public static final ModConfigSpec.BooleanValue HUD_NAMES;
+    public static final ModConfigSpec.BooleanValue HUD_DISTANCES;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> HUD_HIDDEN_LAYERS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -99,6 +112,31 @@ public final class CartofoldClientConfig {
         MARKER_SCALE = builder.comment("The scale of the markers, of their names and of the arrow of the player.")
                 .translation("cartofold.configuration.markers.scale")
                 .defineInRange("scale", 1.0, MarkerSizes.MIN_SCALE, MarkerSizes.MAX_SCALE);
+        builder.pop();
+        builder.translation("cartofold.configuration.hud").push("hud");
+        HUD = builder.comment("Show the waypoints and the markers in the world.")
+                .translation("cartofold.configuration.hud.enabled").define("enabled", true);
+        HUD_WAYPOINTS = builder.comment("Show the waypoints in the world.")
+                .translation("cartofold.configuration.hud.waypoints").define("waypoints", true);
+        HUD_MIN_DISTANCE = builder.comment("Hide the markers nearer than this distance, in blocks.")
+                .translation("cartofold.configuration.hud.min_distance")
+                .defineInRange("minDistance", 50, 0, 100_000);
+        HUD_MAX_DISTANCE = builder.comment("Hide the markers farther than this distance, in blocks. 0 shows all the "
+                + "far markers.").translation("cartofold.configuration.hud.max_distance")
+                .defineInRange("maxDistance", 1000, 0, 100_000);
+        HUD_OPACITY = builder.comment("The opacity of the markers, in percent.")
+                .translation("cartofold.configuration.hud.opacity").defineInRange("opacity", 80, 10, 100);
+        HUD_HEIGHT = builder.comment("The height of a marker above its position, in blocks.")
+                .translation("cartofold.configuration.hud.height").defineInRange("height", 1.0, 0.0, 64.0);
+        HUD_SCALE = builder.comment("The size of the markers: 1 is the normal size.")
+                .translation("cartofold.configuration.hud.scale").defineInRange("scale", 1.0, 0.5, 4.0);
+        HUD_NAMES = builder.comment("Show the names of the markers.")
+                .translation("cartofold.configuration.hud.names").define("names", true);
+        HUD_DISTANCES = builder.comment("Show the distances of the markers.")
+                .translation("cartofold.configuration.hud.distances").define("distances", true);
+        HUD_HIDDEN_LAYERS = builder.comment("The identifiers of the layers that do not show in the world.")
+                .translation("cartofold.configuration.hud.hidden_layers")
+                .defineListAllowEmpty("hiddenLayers", List.of(), () -> "", value -> value instanceof String);
         builder.pop();
         SPEC = builder.build();
     }

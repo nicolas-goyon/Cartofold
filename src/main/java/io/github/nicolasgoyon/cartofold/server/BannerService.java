@@ -199,7 +199,7 @@ public final class BannerService {
 
     private void send(ServerPlayer player) {
         LayerInfo info = new LayerInfo(BannerMark.LAYER, Component.translatable("cartofold.layer.banners"), 0,
-                Set.of(MapViewKind.MINIMAP, MapViewKind.WORLD_MAP), false);
+                Set.of(MapViewKind.MINIMAP, MapViewKind.WORLD_MAP, MapViewKind.HUD), false);
         LayerContent content = new LayerContent(info, List.of(), List.of(),
                 marks(player.getUUID()).stream().map(BannerMark::marker).toList());
         LayerService.get().ifPresent(service -> service.send(player, content));
