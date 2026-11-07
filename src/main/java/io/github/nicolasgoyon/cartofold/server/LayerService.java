@@ -89,8 +89,22 @@ public final class LayerService {
 
     /** Sets a layer for all the players. */
     public void setGlobal(LayerContent content) {
-        global.put(content.info().id(), content);
-        server.getPlayerList().getPlayers().forEach(player -> send(player, content));
+        LayerContent old = global.put(content.info().id(), content);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (hasGlobal(player, content.info().id(), old)) {
+                send(player, content);
+            }
+        }
+    }
+
+    /**
+     * True if a player shows the layer for all the players, or no layer with this identifier. A layer of one player
+     * replaces the layer for all the players: the changes of the layer for all the players do not reach it.
+     */
+    private boolean hasGlobal(ServerPlayer player, ResourceLocation layer, @Nullable LayerContent global) {
+        Map<ResourceLocation, LayerContent> layers = players.get(player.getUUID());
+        LayerContent current = layers == null ? null : layers.get(layer);
+        return current == null || current == global;
     }
 
     /** Changes some elements of a layer for all the players that have this layer. */
@@ -113,8 +127,13 @@ public final class LayerService {
 
     /** Removes a layer for all the players. */
     public void removeGlobal(ResourceLocation layer) {
-        if (global.remove(layer) != null) {
-            server.getPlayerList().getPlayers().forEach(player -> remove(player, layer));
+        LayerContent old = global.remove(layer);
+        if (old != null) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (hasGlobal(player, layer, old)) {
+                    remove(player, layer);
+                }
+            }
         }
     }
 
