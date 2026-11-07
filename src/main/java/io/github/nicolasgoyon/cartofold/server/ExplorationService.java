@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import net.minecraft.Util;
@@ -96,6 +97,8 @@ public final class ExplorationService {
     private final Map<UUID, ExplorationRequestPayload> requests = new HashMap<>();
     /** The game time of the last applied request of each player. */
     private final Map<UUID, Long> lastRequests = new HashMap<>();
+    /** The last write of each file that did not end: the next write of the file waits for it. */
+    private final Map<Path, CompletableFuture<Void>> fileWrites = new ConcurrentHashMap<>();
 
     /** The data of one slice of a dimension. */
     private static final class LevelData {
@@ -367,7 +370,8 @@ public final class ExplorationService {
     /** The map data of a region of a slice, from the memory or from the disk. A new region has no data. */
     public MapRegion region(ExplorationKey key, RegionPos pos, long now) {
         Used<MapRegion> used = data(key).regions.computeIfAbsent(pos, region -> new Used<>(
-                load(() -> storage.readRegion(key, region), () -> new MapRegion(region), region), now));
+                load(() -> storage.readRegion(key, region), () -> new MapRegion(region),
+                        storage.regionFile(key, region)), now));
         used.lastUse = now;
         return used.value;
     }
@@ -381,7 +385,7 @@ public final class ExplorationService {
         LevelData data = levels.get(key);
         Used<MapRegion> used = data == null ? null : data.regions.get(pos);
         if (used == null) {
-            Optional<MapRegion> stored = read(() -> storage.readRegion(key, pos), pos);
+            Optional<MapRegion> stored = read(() -> storage.readRegion(key, pos), storage.regionFile(key, pos));
             if (stored.isEmpty()) {
                 return null;
             }
@@ -402,7 +406,8 @@ public final class ExplorationService {
         Map<RegionPos, Used<ExploredMask>> masks = data == null ? null : data.masks.get(player);
         Used<ExploredMask> used = masks == null ? null : masks.get(pos);
         if (used == null) {
-            Optional<ExploredMask> stored = read(() -> storage.readMask(key, player, pos), pos);
+            Optional<ExploredMask> stored = read(() -> storage.readMask(key, player, pos),
+                    storage.maskFile(key, player, pos));
             if (stored.isEmpty()) {
                 return null;
             }
@@ -419,11 +424,12 @@ public final class ExplorationService {
         return data == null ? 0 : data.regions.size();
     }
 
-    private static <T> Optional<T> read(Reader<T> reader, RegionPos pos) {
+    private static <T> Optional<T> read(Reader<T> reader, Path file) {
         try {
             return reader.read();
         } catch (IOException e) {
-            Cartofold.LOGGER.error("The exploration data of the region {} is not valid", pos, e);
+            Cartofold.LOGGER.error("The exploration data {} is not valid", file, e);
+            ExplorationStorage.quarantine(file);
             return Optional.empty();
         }
     }
@@ -437,7 +443,7 @@ public final class ExplorationService {
     public ExploredMask mask(ExplorationKey key, UUID player, RegionPos pos, long now) {
         Used<ExploredMask> used = data(key).masks.computeIfAbsent(player, ignored -> new HashMap<>())
                 .computeIfAbsent(pos, region -> new Used<>(load(() -> storage.readMask(key, player, region),
-                        () -> new ExploredMask(region), region), now));
+                        () -> new ExploredMask(region), storage.maskFile(key, player, region)), now));
         used.lastUse = now;
         return used.value;
     }
@@ -448,13 +454,8 @@ public final class ExplorationService {
         Optional<T> read() throws IOException;
     }
 
-    private static <T> T load(Reader<T> reader, Supplier<T> fresh, RegionPos pos) {
-        try {
-            return reader.read().orElseGet(fresh);
-        } catch (IOException e) {
-            Cartofold.LOGGER.error("The exploration data of the region {} is not valid: it starts again", pos, e);
-            return fresh.get();
-        }
+    private static <T> T load(Reader<T> reader, Supplier<T> fresh, Path file) {
+        return read(reader, file).orElseGet(fresh);
     }
 
     /**
@@ -468,17 +469,17 @@ public final class ExplorationService {
             ExplorationKey level = entry.getKey();
             for (Used<MapRegion> used : entry.getValue().regions.values()) {
                 if (used.value.isDirty()) {
-                    writes.add(write(storage.regionFile(level, used.value.pos()), () -> ExplorationStorage
-                            .bytes(used.value)));
                     used.value.setSaved();
+                    writes.add(write(storage.regionFile(level, used.value.pos()), () -> ExplorationStorage
+                            .bytes(used.value), used.value::markDirty));
                 }
             }
             for (Map.Entry<UUID, Map<RegionPos, Used<ExploredMask>>> player : entry.getValue().masks.entrySet()) {
                 for (Used<ExploredMask> used : player.getValue().values()) {
                     if (used.value.isDirty()) {
-                        writes.add(write(storage.maskFile(level, player.getKey(), used.value.pos()),
-                                () -> ExplorationStorage.bytes(used.value)));
                         used.value.setSaved();
+                        writes.add(write(storage.maskFile(level, player.getKey(), used.value.pos()),
+                                () -> ExplorationStorage.bytes(used.value), used.value::markDirty));
                     }
                 }
             }
@@ -494,22 +495,32 @@ public final class ExplorationService {
         byte[] bytes() throws IOException;
     }
 
-    /** Takes the content on the server thread, then writes it on an IO thread. */
-    private static CompletableFuture<Void> write(Path file, Content content) {
+    /**
+     * Takes the content on the server thread, then writes it on an IO thread. The writes of one file run in their
+     * order, after the previous write of this file.
+     *
+     * @param failed runs on the server thread when the write fails: the data must be saved again
+     */
+    private CompletableFuture<Void> write(Path file, Content content, Runnable failed) {
         byte[] bytes;
         try {
             bytes = content.bytes();
         } catch (IOException e) {
             Cartofold.LOGGER.error("The exploration data {} cannot be written", file, e);
+            failed.run();
             return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.runAsync(() -> {
-            try {
-                ExplorationStorage.write(file, bytes);
-            } catch (IOException e) {
-                Cartofold.LOGGER.error("The exploration data {} cannot be written", file, e);
-            }
-        }, Util.ioPool());
+        CompletableFuture<Void> next = fileWrites.getOrDefault(file, CompletableFuture.completedFuture(null))
+                .thenRunAsync(() -> {
+                    try {
+                        ExplorationStorage.write(file, bytes);
+                    } catch (IOException e) {
+                        Cartofold.LOGGER.error("The exploration data {} cannot be written", file, e);
+                        server.execute(failed);
+                    }
+                }, Util.ioPool());
+        fileWrites.put(file, next);
+        return next.whenComplete((result, error) -> fileWrites.remove(file, next));
     }
 
     /** Saves, then frees the regions and the masks with no use for {@link #UNLOAD_TICKS} ticks. */

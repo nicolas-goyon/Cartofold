@@ -118,6 +118,7 @@ public final class WaypointService {
             return Waypoints.LIST_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(IOException::new);
         } catch (IOException | RuntimeException e) {
             Cartofold.LOGGER.error("The waypoints {} are not valid: the player has no waypoint", file, e);
+            ExplorationStorage.quarantine(file);
             return List.of();
         }
     }

@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold.server;
 
+import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.ExploredMask;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
@@ -117,8 +118,32 @@ public final class ExplorationStorage {
      */
     static void write(Path file, byte[] bytes) throws IOException {
         Files.createDirectories(file.getParent());
-        Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.write(temporary, bytes);
-        Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        // Each write has its own temporary file: two writes at the same time cannot mix their bytes.
+        Path temporary = file.resolveSibling(file.getFileName() + "." + UUID.randomUUID() + ".tmp");
+        try {
+            Files.write(temporary, bytes);
+            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    /**
+     * Keeps a file that the mod cannot read: the file gets the suffix {@code .corrupt}, so the next save does not
+     * replace it. An administrator can then repair it or remove it.
+     *
+     * @param file the file that is not valid
+     */
+    public static void quarantine(Path file) {
+        Path target = file.resolveSibling(file.getFileName() + ".corrupt");
+        try {
+            if (Files.exists(target)) {
+                target = file.resolveSibling(file.getFileName() + "." + System.currentTimeMillis() + ".corrupt");
+            }
+            Files.move(file, target, StandardCopyOption.REPLACE_EXISTING);
+            Cartofold.LOGGER.warn("The file {} is not valid: Cartofold keeps it as {}", file, target);
+        } catch (IOException e) {
+            Cartofold.LOGGER.error("The file {} is not valid and cannot be moved", file, e);
+        }
     }
 }
