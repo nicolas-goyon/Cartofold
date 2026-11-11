@@ -51,6 +51,12 @@ public record MapProjection(
         return screenX >= x && screenX <= x + width && screenY >= y && screenY <= y + height;
     }
 
+    /** True if a point of the screen is in the rectangle, or at most a margin out of it. */
+    public boolean contains(double screenX, double screenY, double margin) {
+        return screenX >= x - margin && screenX <= x + width + margin && screenY >= y - margin
+                && screenY <= y + height + margin;
+    }
+
     /**
      * The point of the screen of a position in the world.
      *

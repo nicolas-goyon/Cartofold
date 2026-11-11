@@ -1,12 +1,23 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # The composite actions in .github/actions also pin actions.
+    directories:
+      - /
+      - /.github/actions/*
     target-branch: develop
     schedule:
       interval: weekly
     commit-message:
       prefix: ci
+
+  - package-ecosystem: pip
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: docs
 
   - package-ecosystem: gradle
     directory: /

@@ -4,6 +4,7 @@ import io.github.nicolasgoyon.cartofold.view.LabelLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -23,13 +24,12 @@ public final class MapLabels {
     public record Key(ResourceLocation layer, String marker) {
     }
 
-    private record Label(Component name, int x, int y) {
+    private record Label(Component name, double x, double y) {
     }
 
     @Nullable
     private final Key hovered;
-    @Nullable
-    private final Key selected;
+    private final Set<Key> selected;
     private final List<Label> priority = new ArrayList<>();
     private final List<Label> others = new ArrayList<>();
 
@@ -37,22 +37,22 @@ public final class MapLabels {
      * Makes the names of one draw.
      *
      * @param hovered  the marker under the mouse, or null
-     * @param selected the selected marker, or null
+     * @param selected the selected markers
      */
-    public MapLabels(@Nullable Key hovered, @Nullable Key selected) {
+    public MapLabels(@Nullable Key hovered, Set<Key> selected) {
         this.hovered = hovered;
-        this.selected = selected;
+        this.selected = Set.copyOf(selected);
     }
 
-    /** True if a marker is the selected marker. */
+    /** True if a marker is a selected marker. */
     public boolean selected(ResourceLocation layer, String marker) {
-        return selected != null && selected.equals(new Key(layer, marker));
+        return selected.contains(new Key(layer, marker));
     }
 
     /** Adds the name of a marker of a layer, with its center at the top of the point. */
-    public void add(ResourceLocation layer, String marker, Component name, int x, int y) {
+    public void add(ResourceLocation layer, String marker, Component name, double x, double y) {
         Key key = new Key(layer, marker);
-        add(name, x, y, Objects.equals(key, hovered) || Objects.equals(key, selected));
+        add(name, x, y, Objects.equals(key, hovered) || selected.contains(key));
     }
 
     /**
@@ -60,7 +60,7 @@ public final class MapLabels {
      *
      * @param priority true if the name always shows
      */
-    public void add(Component name, int x, int y, boolean priority) {
+    public void add(Component name, double x, double y, boolean priority) {
         if (!name.getString().isEmpty()) {
             (priority ? this.priority : others).add(new Label(name, x, y));
         }
@@ -68,17 +68,28 @@ public final class MapLabels {
 
     /** Draws the names. */
     public void draw(GuiGraphics graphics, Font font) {
+        double scale = CartofoldClientConfig.markerSizes().name();
+        double height = font.lineHeight * scale;
         LabelLayout layout = new LabelLayout();
         for (Label label : priority) {
-            int half = font.width(label.name()) / 2;
-            layout.force(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight);
-            graphics.drawCenteredString(font, label.name(), label.x(), label.y(), COLOR);
+            double half = font.width(label.name()) * scale / 2;
+            layout.force(label.x() - half, label.y(), label.x() + half, label.y() + height);
+            drawName(graphics, font, label, scale);
         }
         for (Label label : others.reversed()) {
-            int half = font.width(label.name()) / 2;
-            if (layout.place(label.x() - half, label.y(), label.x() + half, label.y() + font.lineHeight)) {
-                graphics.drawCenteredString(font, label.name(), label.x(), label.y(), COLOR);
+            double half = font.width(label.name()) * scale / 2;
+            if (layout.place(label.x() - half, label.y(), label.x() + half, label.y() + height)) {
+                drawName(graphics, font, label, scale);
             }
         }
+    }
+
+    /** Draws a name at its point, with no rounding: the name stays under its marker when the map moves. */
+    private static void drawName(GuiGraphics graphics, Font font, Label label, double scale) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(label.x(), label.y(), 0);
+        graphics.pose().scale((float) scale, (float) scale, 1);
+        graphics.drawCenteredString(font, label.name(), 0, 0, COLOR);
+        graphics.pose().popPose();
     }
 }

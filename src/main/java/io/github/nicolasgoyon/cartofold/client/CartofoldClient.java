@@ -12,11 +12,12 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import org.lwjgl.glfw.GLFW;
 
-/** The registration of the parts of the client: the layer of the minimap and the keys. */
+/** The registration of the parts of the client: the layers of the minimap and of the HUD, and the keys. */
 @EventBusSubscriber(modid = Cartofold.MOD_ID, value = Dist.CLIENT)
 public final class CartofoldClient {
     /** The category of the keys of Cartofold. */
@@ -27,6 +28,7 @@ public final class CartofoldClient {
     public static final KeyMapping ZOOM_OUT = key("zoom_out", GLFW.GLFW_KEY_LEFT_BRACKET);
     public static final KeyMapping OPEN_MAP = key("open_map", GLFW.GLFW_KEY_M);
     public static final KeyMapping ADD_WAYPOINT = key("add_waypoint", GLFW.GLFW_KEY_B);
+    public static final KeyMapping TOGGLE_HUD = key("toggle_hud", GLFW.GLFW_KEY_U);
 
     private CartofoldClient() {
     }
@@ -43,12 +45,20 @@ public final class CartofoldClient {
         event.register(ZOOM_OUT);
         event.register(OPEN_MAP);
         event.register(ADD_WAYPOINT);
+        event.register(TOGGLE_HUD);
     }
 
     @SubscribeEvent
     public static void onRegisterLayers(RegisterGuiLayersEvent event) {
         event.registerBelow(VanillaGuiLayers.CHAT, ResourceLocation.fromNamespaceAndPath(Cartofold.MOD_ID, "minimap"),
                 Minimap::render);
+        event.registerBelowAll(ResourceLocation.fromNamespaceAndPath(Cartofold.MOD_ID, "world_hud"),
+                WorldHud::render);
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        WorldHud.capture(event);
     }
 
     @SubscribeEvent
@@ -64,6 +74,10 @@ public final class CartofoldClient {
         }
         while (TOGGLE_MINIMAP.consumeClick()) {
             CartofoldClientConfig.MINIMAP.set(!CartofoldClientConfig.MINIMAP.get());
+            CartofoldClientConfig.SPEC.save();
+        }
+        while (TOGGLE_HUD.consumeClick()) {
+            CartofoldClientConfig.HUD.set(!CartofoldClientConfig.HUD.get());
             CartofoldClientConfig.SPEC.save();
         }
         while (ADD_WAYPOINT.consumeClick()) {

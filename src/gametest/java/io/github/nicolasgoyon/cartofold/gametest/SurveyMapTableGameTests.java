@@ -8,8 +8,11 @@ import io.github.nicolasgoyon.cartofold.paper.MapUpdates;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapData;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapId;
 import io.github.nicolasgoyon.cartofold.paper.SurveyMapItem;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +22,10 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.component.MapPostProcessing;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -124,6 +131,38 @@ public final class SurveyMapTableGameTests {
         helper.succeed();
     }
 
+    /** The same button again selects the zoom, and a locked map does not move. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void sameButtonAgainZoomsOut(GameTestHelper helper) {
+        ItemStack map = map(helper, 1);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.EAST);
+        table.menu().clickMenuButton(table.player(), MapMoves.EAST);
+        SurveyMapData zoomed = data(helper, table.take());
+        helper.assertTrue(zoomed.scale() == 2, "The second click selects the zoom: " + zoomed.scale());
+
+        ItemStack locked = Table.of(helper, map, Items.GLASS_PANE, MapMoves.NONE).take();
+        ItemStack moved = Table.of(helper, locked, Items.PAPER, MapMoves.NORTH).take();
+        helper.assertTrue(moved.isEmpty(), "A locked map does not move");
+        helper.succeed();
+    }
+
+    /** A vanilla map keeps the vanilla table: a paper zooms it out, and the buttons change nothing. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void vanillaMapKeepsTheVanillaTable(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(TABLE);
+        ItemStack map = MapItem.create(helper.getLevel(), pos.getX(), pos.getZ(), (byte) 0, false, false);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.EAST);
+        ItemStack result = table.menu().getSlot(2).getItem();
+        helper.assertTrue(result.is(Items.FILLED_MAP), "The result is a vanilla map");
+        helper.assertTrue(result.get(DataComponents.MAP_POST_PROCESSING) == MapPostProcessing.SCALE,
+                "The vanilla zoom stays with a selected button");
+        table.take();
+
+        ItemStack copies = Table.of(helper, map, Items.MAP, MapMoves.UPDATE).menu().getSlot(2).getItem();
+        helper.assertTrue(copies.is(Items.FILLED_MAP) && copies.getCount() == 2, "The vanilla copy stays");
+        helper.succeed();
+    }
+
     /** The update button gives the same map, and the update paints the pixel of the table from the loaded chunk. */
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void updateButtonPaintsTheMap(GameTestHelper helper) {
@@ -143,5 +182,77 @@ public final class SurveyMapTableGameTests {
             helper.assertFalse(MapUpdates.running(id), "The update must end");
             helper.assertTrue(data.colors()[px + pz * MapMoves.SIZE] != 0, "The pixel of the table has a color");
         });
+    }
+
+    /**
+     * The update paints a generated chunk that is not loaded: the chunk loads from the disk, with no wait. After the
+     * update, the chunk unloads again.
+     */
+    @GameTest(template = "empty", timeoutTicks = 1200)
+    public static void updateLoadsAChunkFromTheDisk(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        // A chunk far from the tests and from the players: nothing else keeps it loaded.
+        ChunkPos chunk = new ChunkPos(20_000, 20_000);
+        level.getChunk(chunk.x, chunk.z);
+        int blockX = chunk.getMiddleBlockX();
+        int blockZ = chunk.getMiddleBlockZ();
+        ItemStack map = SurveyMapItem.create(level.getServer(),
+                SurveyMapData.around(level.dimension(), blockX, blockZ, 0));
+        SurveyMapData data = data(helper, map);
+        SurveyMapId id = SurveyMapItem.id(map);
+        int pixel = data.geometry().pixelX(blockX) + data.geometry().pixelZ(blockZ) * MapMoves.SIZE;
+        AtomicBoolean started = new AtomicBoolean();
+        AtomicBoolean painted = new AtomicBoolean();
+        helper.onEachTick(() -> {
+            boolean unloaded = level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null;
+            if (!started.get() && unloaded) {
+                MapUpdates.start(level, id, data);
+                started.set(true);
+            } else if (started.get() && !painted.get() && !MapUpdates.running(id)) {
+                painted.set(true);
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(painted.get(), "The update must end");
+            helper.assertTrue(data.colors()[pixel] != 0, "The pixel of the chunk has a color");
+            // With no ticket of the update, nothing keeps the chunk loaded.
+            helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null,
+                    "The chunk must unload after the update");
+        });
+    }
+
+    /** A table in a dimension updates a map of another dimension with the land of the map. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void updateReadsTheDimensionOfTheMap(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(TABLE);
+        ItemStack map = SurveyMapItem.create(helper.getLevel().getServer(),
+                SurveyMapData.around(Level.NETHER, pos.getX(), pos.getZ(), 0));
+
+        ItemStack result = Table.of(helper, map, Items.PAPER, MapMoves.UPDATE).take();
+
+        SurveyMapId id = SurveyMapItem.id(result);
+        helper.assertTrue(MapUpdates.dimension(id).equals(Optional.of(Level.NETHER)),
+                "The update reads the land of the Nether");
+        helper.succeed();
+    }
+
+    /** A shift click on the result with a full inventory does not apply the action. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void fullInventoryKeepsTheAction(GameTestHelper helper) {
+        ItemStack map = map(helper, 0);
+        Table table = Table.of(helper, map, Items.PAPER, MapMoves.UPDATE);
+        for (int slot = 0; slot < table.player().getInventory().items.size(); slot++) {
+            table.player().getInventory().items.set(slot, new ItemStack(Items.STONE, 64));
+        }
+
+        ItemStack moved = table.menu().quickMoveStack(table.player(), 2);
+
+        helper.assertTrue(moved.isEmpty(), "Nothing moves");
+        helper.assertFalse(MapUpdates.running(SurveyMapItem.id(map)), "No update starts");
+        helper.assertTrue(table.menu().getSlot(0).getItem().getCount() == 2, "The table keeps the maps");
+        helper.assertTrue(table.menu().getSlot(1).getItem().getCount() == 2, "The table keeps the paper");
+        table.menu().removed(table.player());
+        table.player().getInventory().clearContent();
+        helper.succeed();
     }
 }

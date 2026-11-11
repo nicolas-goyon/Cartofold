@@ -3,6 +3,7 @@
 
 Output:
 - src/main/resources/cartofold_logo.png
+- docs/assets/logo.png
 
     python3 tools/textures/logo.py
 
@@ -16,7 +17,9 @@ import os
 
 from PIL import Image
 
-OUT = os.path.join(os.path.dirname(__file__), "..", "..", "src", "main", "resources", "cartofold_logo.png")
+ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
+OUTPUTS = (os.path.join(ROOT, "src", "main", "resources", "cartofold_logo.png"),
+           os.path.join(ROOT, "docs", "assets", "logo.png"))
 
 SIZE = 64
 SCALE = 8
@@ -120,7 +123,9 @@ def draw():
 
 
 def main():
-    draw().save(OUT, optimize=True)
+    image = draw()
+    for path in OUTPUTS:
+        image.save(path, optimize=True)
 
 
 if __name__ == "__main__":

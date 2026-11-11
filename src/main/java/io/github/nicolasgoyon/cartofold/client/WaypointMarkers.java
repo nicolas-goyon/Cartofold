@@ -13,8 +13,6 @@ import net.minecraft.world.level.Level;
 /** Draws the waypoints of the player on the map views. */
 public final class WaypointMarkers {
     /** The distance in units of the screen to select a waypoint with the mouse. */
-    public static final double SELECT_DISTANCE = 6;
-    private static final int MARKER_SIZE = 5;
 
     private WaypointMarkers() {
     }
@@ -34,7 +32,7 @@ public final class WaypointMarkers {
      */
     public static void renderMinimap(GuiGraphics graphics, ResourceKey<Level> dimension, MapProjection projection,
             boolean round) {
-        double limit = projection.width() / 2 - MARKER_SIZE;
+        double limit = projection.width() / 2 - CartofoldClientConfig.markerSizes().nameOffset();
         for (Waypoint waypoint : ClientWaypoints.get().in(dimension)) {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             double[] inside = MinimapLayout.keepInside(point[0] - projection.screenCenterX(),
@@ -57,8 +55,8 @@ public final class WaypointMarkers {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             MapShapes.drawMarker(graphics, (float) point[0], (float) point[1], waypoint.color(), waypoint.death());
             if (labels != null && projection.contains(point[0], point[1])) {
-                labels.add(name(waypoint), (int) Math.round(point[0]), (int) Math.round(point[1]) + MARKER_SIZE + 1,
-                        Math.hypot(point[0] - mouseX, point[1] - mouseY) <= SELECT_DISTANCE);
+                labels.add(name(waypoint), point[0], point[1] + CartofoldClientConfig.markerSizes().nameOffset(),
+                        Math.hypot(point[0] - mouseX, point[1] - mouseY) <= CartofoldClientConfig.markerSizes().hit());
             }
         }
     }
@@ -68,7 +66,7 @@ public final class WaypointMarkers {
             double screenY) {
         @Nullable
         Waypoint nearest = null;
-        double best = SELECT_DISTANCE;
+        double best = CartofoldClientConfig.markerSizes().hit();
         for (Waypoint waypoint : ClientWaypoints.get().in(dimension)) {
             double[] point = projection.toScreen(waypoint.pos().getX() + 0.5, waypoint.pos().getZ() + 0.5);
             double distance = Math.hypot(point[0] - screenX, point[1] - screenY);

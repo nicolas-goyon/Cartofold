@@ -1,8 +1,9 @@
 package io.github.nicolasgoyon.cartofold.paper;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 
 /**
  * The cartography table with a survey map, as the vanilla table with a vanilla map:
@@ -14,7 +15,8 @@ import net.minecraft.world.item.Items;
  *   <li>an empty survey map gives two maps with the same data.</li>
  * </ul>
  *
- * <p>A locked map does not zoom, move, update or lock again. The action happens when the player takes the result.
+ * <p>A locked map does not zoom, move, update or lock again (see {@link SurveyTableOutcome}). The action happens when
+ * the player takes the result.
  */
 public final class SurveyMapTable {
     private SurveyMapTable() {
@@ -34,29 +36,50 @@ public final class SurveyMapTable {
         if (data == null) {
             return ItemStack.EMPTY;
         }
-        if (input.is(CartofoldItems.EMPTY_SURVEY_MAP.get())) {
+        SurveyTableOutcome outcome = SurveyTableOutcome.of(SurveyTableOutcome.Input.of(input), data.locked(),
+                data.scale(), button);
+        if (outcome == SurveyTableOutcome.COPY) {
             return map.copyWithCount(2);
         }
-        if (data.locked()) {
-            return ItemStack.EMPTY;
-        }
-        if (input.is(Items.PAPER)) {
-            SurveyMapAction action = SurveyMapAction.ofButton(button);
-            if (action == SurveyMapAction.ZOOM && data.scale() >= SurveyMapData.MAX_SCALE) {
-                return ItemStack.EMPTY;
-            }
-            return withAction(map, action);
-        }
-        if (input.is(Items.GLASS_PANE)) {
-            return withAction(map, SurveyMapAction.LOCK);
-        }
-        return ItemStack.EMPTY;
+        SurveyMapAction action = outcome.action();
+        return action == null ? ItemStack.EMPTY : withAction(map, action);
+    }
+
+    /**
+     * The geometry of the map that a zoom gives: the next scale, with the center on the grid of the game.
+     *
+     * @param map the geometry of the map
+     * @return the geometry of the zoomed-out map
+     */
+    public static PaperMapGeometry zoomed(PaperMapGeometry map) {
+        return SurveyMapData.around(Level.OVERWORLD, map.centerX(), map.centerZ(),
+                Math.min(map.scale() + 1, SurveyMapData.MAX_SCALE)).geometry();
     }
 
     private static ItemStack withAction(ItemStack map, SurveyMapAction action) {
         ItemStack result = map.copyWithCount(1);
         result.set(CartofoldItems.SURVEY_MAP_ACTION.get(), action);
         return result;
+    }
+
+    /**
+     * True if the inventory slots of a menu can take a result. Vanilla applies the action of the result before it moves
+     * the result to the inventory: with no room, the action must not run.
+     *
+     * @param menu   the menu
+     * @param result the result
+     * @param first  the first slot of the inventory in the menu
+     * @param end    the slot after the last slot of the inventory in the menu
+     */
+    public static boolean fits(AbstractContainerMenu menu, ItemStack result, int first, int end) {
+        for (int index = first; index < end; index++) {
+            ItemStack stack = menu.slots.get(index).getItem();
+            if (stack.isEmpty() || (ItemStack.isSameItemSameComponents(stack, result)
+                    && stack.getCount() + result.getCount() <= stack.getMaxStackSize())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -78,7 +101,11 @@ public final class SurveyMapTable {
             case LOCK -> data.lockedCopy();
             case MOVE_NORTH, MOVE_SOUTH, MOVE_WEST, MOVE_EAST -> MapMoves.moved(data, action.direction());
             case UPDATE -> {
-                MapUpdates.start(level, id, data);
+                // The update reads the land of the dimension of the map, not of the table.
+                ServerLevel mapLevel = level.getServer().getLevel(data.dimension());
+                if (mapLevel != null) {
+                    MapUpdates.start(mapLevel, id, data);
+                }
                 yield null;
             }
         };

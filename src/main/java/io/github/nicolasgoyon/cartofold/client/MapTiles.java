@@ -5,14 +5,13 @@ import io.github.nicolasgoyon.cartofold.Cartofold;
 import io.github.nicolasgoyon.cartofold.data.ExplorationKey;
 import io.github.nicolasgoyon.cartofold.data.MapRegion;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
+import io.github.nicolasgoyon.cartofold.tile.TileBudget;
 import io.github.nicolasgoyon.cartofold.tile.TileImage;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -33,8 +32,10 @@ import net.neoforged.neoforge.client.event.RenderFrameEvent;
  *   <li>A texture is made again when its region, or the region to the north, changes (see the versions of
  *       {@link ClientExploration}). {@link #UPDATES_PER_FRAME} textures at most are made each frame: a view shows the
  *       old texture until its update.</li>
- *   <li>A texture with no use for {@link #IDLE_MILLIS} milliseconds is freed. When there are more than
- *       {@link #MAX_TILES} textures, the textures with the oldest use are freed.</li>
+ *   <li>A texture with no use for {@link #IDLE_MILLIS} milliseconds is freed. A texture of a region that the client
+ *       no longer has is freed. When the textures use more than {@link #BUDGET} bytes, the textures with the oldest
+ *       use are freed, but not a texture with a use in the last {@link #IN_USE_MILLIS} milliseconds (see
+ *       {@link TileBudget}).</li>
  * </ul>
  *
  * <p>Use this class on the render thread only.
@@ -45,12 +46,18 @@ public final class MapTiles {
     public static final int UPDATES_PER_FRAME = 4;
     /** A texture with no use for this number of milliseconds is freed. */
     public static final long IDLE_MILLIS = 30_000L;
-    /** The largest number of textures in memory. */
-    public static final int MAX_TILES = 256;
+    /** The largest memory of the textures, in bytes. A texture at the level of detail 0 uses 1 MiB. */
+    public static final long BUDGET = 64L * 1024 * 1024;
+    /** A texture with a use in this number of milliseconds stays, also over the budget. */
+    public static final long IN_USE_MILLIS = 1_000L;
+    /** The bytes of a pixel of a texture. */
+    private static final int PIXEL_BYTES = 4;
 
     private static final MapTiles INSTANCE = new MapTiles();
 
     private final Map<Key, Tile> tiles = new HashMap<>();
+    /** The pixels of the texture to make: one array for all the textures. */
+    private final int[] pixels = new int[MapRegion.SIZE * MapRegion.SIZE];
     private int updates;
     private int nextId;
 
@@ -61,13 +68,15 @@ public final class MapTiles {
     private static final class Tile {
         final ResourceLocation location;
         final DynamicTexture texture;
+        final long bytes;
         long version = -1;
         long northVersion = -1;
         long lastUse;
 
-        Tile(ResourceLocation location, DynamicTexture texture) {
+        Tile(ResourceLocation location, DynamicTexture texture, long bytes) {
             this.location = location;
             this.texture = texture;
+            this.bytes = bytes;
         }
     }
 
@@ -116,11 +125,12 @@ public final class MapTiles {
             if (tile == null) {
                 int size = TileImage.size(lod);
                 tile = new Tile(ResourceLocation.fromNamespaceAndPath(Cartofold.MOD_ID, "tile/" + nextId++),
-                        new DynamicTexture(size, size, true));
+                        new DynamicTexture(size, size, true), (long) size * size * PIXEL_BYTES);
                 Minecraft.getInstance().getTextureManager().register(tile.location, tile.texture);
                 tiles.put(key, tile);
             }
-            draw(tile, region.get(), exploration.region(dimension, northPos).orElse(null), lod);
+            draw(tile, TileImage.render(region.get(), exploration.region(dimension, northPos).orElse(null), lod,
+                    pixels), lod);
             tile.version = version;
             tile.northVersion = northVersion;
         }
@@ -131,9 +141,8 @@ public final class MapTiles {
         return Optional.of(tile.location);
     }
 
-    private static void draw(Tile tile, MapRegion region, @Nullable MapRegion north, int lod) {
+    private static void draw(Tile tile, int[] pixels, int lod) {
         int size = TileImage.size(lod);
-        int[] pixels = TileImage.render(region, north, lod);
         NativeImage image = tile.texture.getPixels();
         if (image == null) {
             return;
@@ -146,23 +155,32 @@ public final class MapTiles {
         tile.texture.upload();
     }
 
-    /** Frees the textures with no recent use, and the oldest textures over {@link #MAX_TILES}. */
+    /**
+     * Frees the textures with no recent use, the textures of the regions that the client no longer has, and the oldest
+     * textures over {@link #BUDGET}.
+     */
     private void evict(long now) {
-        tiles.values().removeIf(tile -> {
-            boolean idle = now - tile.lastUse >= IDLE_MILLIS;
-            if (idle) {
+        ClientExploration exploration = ClientExploration.get();
+        tiles.entrySet().removeIf(entry -> {
+            Tile tile = entry.getValue();
+            boolean free = now - tile.lastUse >= IDLE_MILLIS
+                    || exploration.version(entry.getKey().slice(), entry.getKey().pos()) == 0;
+            if (free) {
                 release(tile);
             }
-            return idle;
+            return free;
         });
-        if (tiles.size() > MAX_TILES) {
-            List<Map.Entry<Key, Tile>> entries = new ArrayList<>(tiles.entrySet());
-            entries.sort(Comparator.comparingLong(entry -> entry.getValue().lastUse));
-            for (Map.Entry<Key, Tile> entry : entries.subList(0, tiles.size() - MAX_TILES)) {
-                release(entry.getValue());
-                tiles.remove(entry.getKey());
-            }
+        List<Map.Entry<Key, Tile>> over = TileBudget.over(new ArrayList<>(tiles.entrySet()),
+                entry -> entry.getValue().bytes, entry -> entry.getValue().lastUse, BUDGET, now, IN_USE_MILLIS);
+        for (Map.Entry<Key, Tile> entry : over) {
+            release(entry.getValue());
+            tiles.remove(entry.getKey());
         }
+    }
+
+    /** The memory of the textures, in bytes. */
+    public long bytes() {
+        return tiles.values().stream().mapToLong(tile -> tile.bytes).sum();
     }
 
     private static void release(Tile tile) {

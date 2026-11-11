@@ -44,7 +44,7 @@ public final class LayerGameTests {
         LayerInfo info = LayerInfo.of(LAYER, Component.literal("Test"), 5, true);
         ChunkArea area = ChunkArea.of("area", level.dimension(), List.of(new ChunkPos(0, 0), new ChunkPos(1, 0)),
                 0x4000FF00, 0xFF00FF00, Component.literal("Area"),
-                List.of(Component.literal("Village"), Component.literal("Faction")));
+                List.of(Component.literal("Village"), Component.literal("Faction"))).withOnlyExplored(true);
         MapLine line = new MapLine("line", level.dimension(), List.of(BlockPos.ZERO, new BlockPos(40, 64, 8)),
                 0xFFFF0000, 2);
         MapMarker clickable = new MapMarker("heart", level.dimension(), new BlockPos(8, 64, 8), 0xFFAA00,
@@ -93,6 +93,27 @@ public final class LayerGameTests {
         } finally {
             NeoForge.EVENT_BUS.unregister(listener);
         }
+        helper.succeed();
+    }
+
+    /** A layer for all the players does not replace or remove the layer of one player with the same identifier. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void layerForAllKeepsTheLayerOfAPlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        LayerService service = LayerService.get().orElseThrow();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "cartofold_own_layer"));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("cartofold_test", "shared");
+        LayerContent own = new LayerContent(LayerInfo.of(id, Component.literal("Own"), 0, false), List.of(),
+                List.of(), List.of());
+        LayerContent forAll = new LayerContent(LayerInfo.of(id, Component.literal("All"), 0, false), List.of(),
+                List.of(), List.of());
+        service.send(player, own);
+
+        service.setGlobal(forAll);
+        helper.assertTrue(service.layer(player.getUUID(), id).orElseThrow() == own, "The player keeps its layer");
+        service.removeGlobal(id);
+        helper.assertTrue(service.layer(player.getUUID(), id).orElseThrow() == own, "The player still has its layer");
+        service.remove(player, id);
         helper.succeed();
     }
 }

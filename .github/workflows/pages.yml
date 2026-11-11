@@ -1,0 +1,97 @@
+name: Pages
+
+# Builds the documentation site with MkDocs and the Javadoc with Gradle, and deploys them to GitHub Pages. The release
+# notes come from the GitHub Releases. A pull request only builds the site, with the strict checks of mkdocs.yml.
+# The workflow Release starts this workflow with "workflow_dispatch": a release that GITHUB_TOKEN creates does not start
+# a "release" event.
+# The source of GitHub Pages in the settings of the repository must be "GitHub Actions".
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - requirements-docs.txt
+      - scripts/release_notes.py
+      - src/gametest/java/io/github/nicolasgoyon/cartofold/gametest/ApiExamples.java
+      - src/main/java/**
+      - .github/workflows/pages.yml
+  pull_request:
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - requirements-docs.txt
+      - scripts/release_notes.py
+      - src/gametest/java/io/github/nicolasgoyon/cartofold/gametest/ApiExamples.java
+      - src/main/java/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs
+        run: pip install -r requirements-docs.txt
+
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" --jq '.[]' | jq -s . > releases.json
+          python3 scripts/release_notes.py releases.json docs/release-notes.md
+
+      - name: Build the site
+        run: mkdocs build
+
+      - name: Add the Javadoc to the site
+        run: |
+          ./gradlew javadoc --stacktrace
+          cp -r build/docs/javadoc site/javadoc
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Deploy the site
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

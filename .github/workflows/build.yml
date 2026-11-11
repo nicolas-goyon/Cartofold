@@ -1,11 +1,11 @@
 name: Build
 
-# Builds the mod and runs the tests. Each build has a version from scripts/version.py:
+# Builds the mod and runs the tests, each in its own job. Each build has a version from scripts/version.py:
 # - push on develop: the version of the commit, then "-dev." and the short commit. Example: 0.2.0-dev.13bcc38.
 # - pull request: the version after the merge, then "-pr.", the number and the short commit. Example:
 #   0.2.1-pr.12.abc1234.
 # - push on main: the version of the release.
-# Each build of develop also goes to Modrinth as an alpha. A fork skips this step.
+# When all the jobs pass, a build of develop goes to Modrinth as an alpha. A fork skips this job.
 
 on:
   push:
@@ -22,14 +22,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
-    name: Build and test
+  version:
+    name: Version
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # The history and the tags, for the version.
           fetch-depth: 0
 
@@ -58,26 +61,83 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Version of this build: \`${version}\`." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Tests of the scripts
+  scripts:
+    name: Tests of the scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+  build:
+    name: Build
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          distribution: temurin
-          java-version: '21'
+          persist-credentials: false
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
-      - name: Build, unit tests, format and translation checks
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: ./gradlew build -Pmod_version="$VERSION" --stacktrace
+      - name: Compile, and check the format and the translations
+        run: >-
+          ./gradlew assemble compileGametestJava spotlessCheck checkTranslations
+          -Pmod_version="$VERSION" --stacktrace
 
-      - name: GameTest server
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+      - name: Upload the jars
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cartofold-mod
+          path: build/libs/cartofold-*.jar
+          if-no-files-found: error
+
+  unit-tests:
+    name: Unit tests
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Run the unit tests
+        run: ./gradlew test -Pmod_version="$VERSION" --stacktrace
+
+  gametests:
+    name: GameTests
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Run the GameTest server
         run: ./gradlew runGameTestServer -Pmod_version="$VERSION" --stacktrace
 
       - name: Upload the logs of the GameTest server
@@ -88,20 +148,28 @@ jobs:
           path: run-gametest/logs
           if-no-files-found: ignore
 
-      - name: Upload the mod jar
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  publish-dev:
+    name: Publish the dev build
+    needs: [version, scripts, build, unit-tests, gametests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.repository_owner == 'nicolas-goyon'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the jars
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: cartofold-mod
-          path: |
-            build/libs/cartofold-*.jar
-            !build/libs/*-sources.jar
-          if-no-files-found: error
+          path: build/libs
 
-      - name: Publish the dev build to Modrinth
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.repository_owner == 'nicolas-goyon'
+      - name: Publish to Modrinth
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           git log -1 --format='%s%n%n%b' > build/dev-notes.md
           python3 scripts/modrinth.py publish --version "$VERSION" --notes build/dev-notes.md --type alpha

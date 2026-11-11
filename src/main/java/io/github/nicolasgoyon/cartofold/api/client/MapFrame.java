@@ -13,7 +13,9 @@ import io.github.nicolasgoyon.cartofold.network.MarkerClickPayload;
 import io.github.nicolasgoyon.cartofold.view.MapProjection;
 import io.github.nicolasgoyon.cartofold.view.MinimapLayout;
 import io.github.nicolasgoyon.cartofold.view.WorldMapState;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
@@ -26,7 +28,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * A map frame for the screens of the other mods: a widget that shows the explored map, the layers of a selection and
@@ -50,6 +54,8 @@ public class MapFrame extends AbstractWidget {
     private static final int BORDER = 0xFF404040;
     /** A press and a release with a larger move than this distance, in units of the screen, are a drag. */
     private static final double CLICK_DISTANCE = 2;
+    /** An arrow key moves the view by this part of the smallest side of the frame. */
+    private static final double KEY_MOVE = 1.0 / 8;
     /** The free space around a box of {@link #showBox}, in units of the screen. */
     private static final double BOX_MARGIN = 8;
 
@@ -75,6 +81,20 @@ public class MapFrame extends AbstractWidget {
         void clicked(ResourceLocation layer, String marker);
     }
 
+    /** Handles the clicks on the markers of a frame on the client, and can keep them from the server. */
+    @FunctionalInterface
+    public interface MarkerClickHandler {
+        /**
+         * The player clicked a marker.
+         *
+         * @param layer  the identifier of the layer of the marker
+         * @param marker the identifier of the marker in its layer
+         * @return true to keep the click on the client: the server gets no {@link
+         *     io.github.nicolasgoyon.cartofold.api.MarkerClickEvent}
+         */
+        boolean clicked(ResourceLocation layer, String marker);
+    }
+
     private final WorldMapState state;
     @Nullable
     private ResourceKey<Level> dimension;
@@ -89,10 +109,10 @@ public class MapFrame extends AbstractWidget {
     private Consumer<LayerRenderContext> background;
     private MapSlice slice = MapSlice.SURFACE;
     private MarkerClickListener markerClick = (layer, marker) -> { };
+    private MarkerClickHandler markerHandler = (layer, marker) -> false;
     private Runnable emptyClick = () -> { };
     private Consumer<View> viewChange = view -> { };
-    @Nullable
-    private MapLabels.Key selected;
+    private final Set<MapLabels.Key> selected = new LinkedHashSet<>();
     private boolean pressed;
     private double pressX;
     private double pressY;
@@ -202,6 +222,16 @@ public class MapFrame extends AbstractWidget {
         return this;
     }
 
+    /**
+     * Sets the function that handles the clicks on the markers of the frame, on the client. When it returns true, the
+     * server gets no {@link io.github.nicolasgoyon.cartofold.api.MarkerClickEvent} for this click. The frame calls it
+     * before the function of {@link #onMarkerClick}.
+     */
+    public MapFrame handleMarkerClick(MarkerClickHandler handler) {
+        this.markerHandler = handler;
+        return this;
+    }
+
     /** The center and the scale of the frame now. */
     public View view() {
         return new View(state.centerX(), state.centerZ(), state.scale());
@@ -248,13 +278,37 @@ public class MapFrame extends AbstractWidget {
      * @param marker the identifier of the marker in its layer
      */
     public MapFrame select(ResourceLocation layer, String marker) {
-        this.selected = new MapLabels.Key(layer, marker);
+        selected.clear();
+        selected.add(new MapLabels.Key(layer, marker));
         return this;
+    }
+
+    /**
+     * Adds a marker to the selection: the other selected markers stay selected. For example, a screen marks the two ends
+     * of a route.
+     *
+     * @param layer  the identifier of the layer of the marker
+     * @param marker the identifier of the marker in its layer
+     */
+    public MapFrame addSelection(ResourceLocation layer, String marker) {
+        selected.add(new MapLabels.Key(layer, marker));
+        return this;
+    }
+
+    /** Removes a marker from the selection. */
+    public MapFrame removeSelection(ResourceLocation layer, String marker) {
+        selected.remove(new MapLabels.Key(layer, marker));
+        return this;
+    }
+
+    /** True if a marker is in the selection. */
+    public boolean isSelected(ResourceLocation layer, String marker) {
+        return selected.contains(new MapLabels.Key(layer, marker));
     }
 
     /** Shows no marker as selected. */
     public MapFrame clearSelection() {
-        this.selected = null;
+        selected.clear();
         return this;
     }
 
@@ -277,8 +331,9 @@ public class MapFrame extends AbstractWidget {
         if (shown == null || player == null) {
             return;
         }
+        Vec3 position = player.getPosition(partialTick);
         if (followPlayer) {
-            state.center(player.getX(), player.getZ());
+            state.center(position.x, position.z);
         }
         MapProjection projection = projection();
         ExplorationKey key = new ExplorationKey(shown, slice);
@@ -301,7 +356,7 @@ public class MapFrame extends AbstractWidget {
         }
         labels.draw(graphics, Minecraft.getInstance().font);
         if (showPlayer && player.level().dimension().equals(shown)) {
-            double[] point = projection.toScreen(player.getX(), player.getZ());
+            double[] point = projection.toScreen(position.x, position.z);
             MapShapes.drawArrow(graphics, (float) point[0], (float) point[1],
                     (float) MinimapLayout.arrowRotation(false, player.getViewYRot(partialTick)));
         }
@@ -326,20 +381,28 @@ public class MapFrame extends AbstractWidget {
         pressed = true;
         pressX = mouseX;
         pressY = mouseY;
-        ResourceKey<Level> shown = shownDimension();
-        if (shown != null) {
-            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
-                    hit -> PacketDistributor.sendToServer(new MarkerClickPayload(hit.layer(), hit.marker().id())));
-        }
     }
 
     @Override
     public void onRelease(double mouseX, double mouseY) {
         boolean click = pressed && Math.hypot(mouseX - pressX, mouseY - pressY) <= CLICK_DISTANCE;
         pressed = false;
-        if (click) {
-            markerAt(mouseX, mouseY).ifPresentOrElse(hit -> markerClick.clicked(hit.layer(), hit.marker().id()),
-                    emptyClick);
+        if (!click) {
+            return;
+        }
+        Optional<LayerRenderer.Hit> hit = markerAt(mouseX, mouseY);
+        if (hit.isEmpty()) {
+            emptyClick.run();
+            return;
+        }
+        boolean kept = markerHandler.clicked(hit.get().layer(), hit.get().marker().id());
+        markerClick.clicked(hit.get().layer(), hit.get().marker().id());
+        ResourceKey<Level> shown = shownDimension();
+        if (!kept && shown != null) {
+            // The nearest clickable marker: a marker with no click near the mouse does not take the click.
+            LayerRenderer.clickableMarkerAt(shown, projection(), MapViewKind.FRAME, layers, mouseX, mouseY).ifPresent(
+                    found -> PacketDistributor.sendToServer(new MarkerClickPayload(found.layer(), found.marker()
+                            .id())));
         }
     }
 
@@ -359,6 +422,34 @@ public class MapFrame extends AbstractWidget {
             return false;
         }
         state.zoom(projection(), mouseX, mouseY, scrollY);
+        viewChange.accept(view());
+        return true;
+    }
+
+    /**
+     * When the frame has the focus, the arrow keys move the view by a part of the frame, and + and - zoom at the center.
+     * A screen gives the focus to the frame with a click on the frame, or with Tab.
+     */
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!interactive || !isFocused()) {
+            return false;
+        }
+        double step = Math.min(width, height) * KEY_MOVE;
+        switch (keyCode) {
+            case GLFW.GLFW_KEY_LEFT -> state.drag(step, 0);
+            case GLFW.GLFW_KEY_RIGHT -> state.drag(-step, 0);
+            case GLFW.GLFW_KEY_UP -> state.drag(0, step);
+            case GLFW.GLFW_KEY_DOWN -> state.drag(0, -step);
+            case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> state.zoom(projection(), getX() + width / 2.0,
+                    getY() + height / 2.0, 1);
+            case GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_KP_SUBTRACT -> state.zoom(projection(), getX() + width / 2.0,
+                    getY() + height / 2.0, -1);
+            default -> {
+                return false;
+            }
+        }
+        followPlayer = false;
         viewChange.accept(view());
         return true;
     }

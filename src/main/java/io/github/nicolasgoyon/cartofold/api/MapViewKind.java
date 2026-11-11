@@ -12,7 +12,12 @@ public enum MapViewKind {
     /** The paper maps in the hands and in the item frames. */
     PAPER(1 << 2),
     /** The map frames in the screens of the other mods. */
-    FRAME(1 << 3);
+    FRAME(1 << 3),
+    /**
+     * The markers in the world (the HUD): the screen of the game shows the markers of the layer at their positions,
+     * with their icon, their name and their distance. The areas and the lines do not show in this view.
+     */
+    HUD(1 << 4);
 
     private final int bit;
 
@@ -20,7 +25,7 @@ public enum MapViewKind {
         this.bit = bit;
     }
 
-    /** All the kinds of views. */
+    /** All the kinds of views, {@link #HUD} included. */
     public static Set<MapViewKind> all() {
         return EnumSet.allOf(MapViewKind.class);
     }

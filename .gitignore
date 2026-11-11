@@ -45,3 +45,7 @@ repo/
 ### Python ###
 __pycache__/
 *.pyc
+
+# Documentation site
+/site/
+/docs/release-notes.md

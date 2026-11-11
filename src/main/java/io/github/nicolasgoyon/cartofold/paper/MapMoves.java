@@ -68,7 +68,7 @@ public final class MapMoves {
      * @param dz     the move on the Z axis, in pixels
      * @return the pixels of the new map
      */
-    static byte[] shifted(byte[] colors, int dx, int dz) {
+    public static byte[] shifted(byte[] colors, int dx, int dz) {
         byte[] result = new byte[SIZE * SIZE];
         for (int z = 0; z < SIZE; z++) {
             for (int x = 0; x < SIZE; x++) {

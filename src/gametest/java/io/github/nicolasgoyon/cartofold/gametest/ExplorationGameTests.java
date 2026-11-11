@@ -285,4 +285,40 @@ public final class ExplorationGameTests {
                     "The band has the color of the floor: " + region.color(ground.getX(), ground.getZ()));
         });
     }
+
+    /** A request of regions that the player never explored loads no region and queues no chunk. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void requestOfUnexploredRegionsLoadsNothing(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ExplorationService service = ExplorationService.get().orElseThrow();
+        ExplorationKey key = ExplorationKey.surface(level.dimension());
+        UUID player = UUID.randomUUID();
+        List<RegionPos> far = new java.util.ArrayList<>();
+        for (int i = 0; i < 128; i++) {
+            far.add(new RegionPos(900_000 + i, -900_000));
+        }
+        int before = service.loadedRegions(key);
+
+        service.sync().request(player, level.dimension(), List.of(new ExplorationRequestPayload.SliceRegions(
+                MapSlice.SURFACE, far)), level.getGameTime());
+
+        helper.assertTrue(service.loadedRegions(key) == before, "No new region in the memory");
+        helper.assertTrue(service.sync().pending(player) == 0, "No chunk in the queue");
+        service.sync().remove(player);
+        helper.succeed();
+    }
+
+    /** The server refuses a band of caves out of the height of the level. */
+    @GameTest(template = "empty", timeoutTicks = 20)
+    public static void bandOutOfTheLevelIsRefused(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+
+        helper.assertTrue(ExplorationService.validSlice(level, MapSlice.SURFACE), "The surface is valid");
+        helper.assertTrue(ExplorationService.validSlice(level, MapSlice.caveAt(0)), "A band in the level is valid");
+        helper.assertTrue(!ExplorationService.validSlice(level, MapSlice.caveAt(1_000_000)),
+                "A band above the level is refused");
+        helper.assertTrue(!ExplorationService.validSlice(level, MapSlice.caveAt(-1_000_000)),
+                "A band under the level is refused");
+        helper.succeed();
+    }
 }

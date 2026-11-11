@@ -4,14 +4,18 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multisets;
+import io.github.nicolasgoyon.cartofold.Cartofold;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -19,11 +23,16 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.visitors.CollectFields;
 import net.minecraft.nbt.visitors.FieldSelector;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -34,11 +43,12 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  *
  * <ul>
  *   <li>The update reads the chunks of the area of the map that are already generated: it never generates a chunk. A
- *       chunk that is not loaded comes from the disk.</li>
+ *       chunk that is not loaded comes from the disk, with no wait on the server thread: the update keeps the chunk
+ *       loaded with a ticket until it paints the chunk.</li>
  *   <li>An update reads {@link #LIMIT} chunks at most. The chunks with unexplored pixels come first, then the other
  *       chunks, each group from the middle of the map. Thus a large map needs more than one update.</li>
- *   <li>The server reads {@link #CHUNKS_PER_TICK} chunks at most each tick. The check of the chunks on the disk runs
- *       on the thread of the storage.</li>
+ *   <li>The server paints {@link #CHUNKS_PER_TICK} chunks at most each tick. The check of the chunks on the disk runs
+ *       on the thread of the storage. Each update loads {@link #LOADS} chunks at most at the same time.</li>
  *   <li>The colors of the pixels follow the colors of the game: the most frequent color of the top blocks of the
  *       pixel, and a brightness from the height of the pixel to the north.</li>
  * </ul>
@@ -50,6 +60,11 @@ public final class MapUpdates {
     public static final int CHUNKS_PER_TICK = 4;
     /** The largest number of checks of the disk at the same time, for each update. */
     private static final int CHECKS = 32;
+    /** The largest number of chunks that load at the same time, for each update. */
+    public static final int LOADS = 8;
+    /** The ticket that keeps a chunk loaded until the update paints it. */
+    private static final TicketType<ChunkPos> TICKET = TicketType.create(Cartofold.MOD_ID + ":map_update",
+            Comparator.comparingLong(ChunkPos::toLong));
     private static final String FULL = "minecraft:full";
     private static final List<Job> JOBS = new ArrayList<>();
 
@@ -61,9 +76,15 @@ public final class MapUpdates {
         final ServerLevel level;
         final SurveyMapId id;
         final Deque<ChunkPos> waiting;
+        /** The chunks that are full on the disk or loaded, before their load. Other threads add to this queue. */
         final Queue<ChunkPos> ready = new ConcurrentLinkedQueue<>();
+        /** The loaded chunks, before their paint. */
+        final Queue<ChunkPos> loaded = new ArrayDeque<>();
+        /** The chunks with a ticket of the update. */
+        final Set<ChunkPos> tickets = new HashSet<>();
         final double[] heights = new double[MapMoves.SIZE * MapMoves.SIZE];
         int checking;
+        int loading;
 
         Job(ServerLevel level, SurveyMapId id, List<ChunkPos> chunks) {
             this.level = level;
@@ -73,7 +94,21 @@ public final class MapUpdates {
         }
 
         boolean done() {
-            return waiting.isEmpty() && checking == 0 && ready.isEmpty();
+            return waiting.isEmpty() && checking == 0 && ready.isEmpty() && loading == 0 && loaded.isEmpty();
+        }
+
+        /** Removes the ticket of a chunk, if the update has one. */
+        void release(ChunkPos chunk) {
+            if (tickets.remove(chunk)) {
+                level.getChunkSource().removeRegionTicket(TICKET, chunk, 0, chunk);
+            }
+        }
+
+        /** Removes all the tickets of the update. */
+        void releaseAll() {
+            for (ChunkPos chunk : List.copyOf(tickets)) {
+                release(chunk);
+            }
         }
     }
 
@@ -85,7 +120,13 @@ public final class MapUpdates {
      * @param data  the data of the map
      */
     public static void start(ServerLevel level, SurveyMapId id, SurveyMapData data) {
-        JOBS.removeIf(job -> job.id.equals(id) && job.level == level);
+        JOBS.removeIf(job -> {
+            boolean same = job.id.equals(id) && job.level == level;
+            if (same) {
+                job.releaseAll();
+            }
+            return same;
+        });
         JOBS.add(new Job(level, id, chunks(data)));
     }
 
@@ -97,6 +138,11 @@ public final class MapUpdates {
      */
     public static boolean running(SurveyMapId id) {
         return JOBS.stream().anyMatch(job -> job.id.equals(id));
+    }
+
+    /** The dimension that the running update of a map reads, or empty with no update. */
+    public static Optional<ResourceKey<Level>> dimension(SurveyMapId id) {
+        return JOBS.stream().filter(job -> job.id.equals(id)).map(job -> job.level.dimension()).findFirst();
     }
 
     /** The chunks of an update: the chunks with unexplored pixels first, each group from the middle of the map. */
@@ -117,6 +163,19 @@ public final class MapUpdates {
         chunks.sort(Comparator.<ChunkPos, Boolean>comparing(chunk -> explored(data, chunk))
                 .thenComparingInt(chunk -> Math.max(Math.abs(chunk.x - middleX), Math.abs(chunk.z - middleZ))));
         return chunks.subList(0, Math.min(LIMIT, chunks.size()));
+    }
+
+    /**
+     * The number of chunks in the area of a map. An update reads {@link #LIMIT} of them at most.
+     *
+     * @param map the geometry of the map
+     * @return the number of chunks
+     */
+    public static int chunkCount(PaperMapGeometry map) {
+        int last = MapMoves.SIZE - 1;
+        int columns = ((map.blockX(last) + map.factor() - 1) >> 4) - (map.blockX(0) >> 4) + 1;
+        int rows = ((map.blockZ(last) + map.factor() - 1) >> 4) - (map.blockZ(0) >> 4) + 1;
+        return columns * rows;
     }
 
     /** True if all the pixels of a chunk are explored. */
@@ -169,18 +228,52 @@ public final class MapUpdates {
             Job job = iterator.next();
             SurveyMapData data = SurveyMapData.get(job.level.getServer(), job.id);
             if (data == null || data.locked()) {
+                job.releaseAll();
                 iterator.remove();
                 continue;
             }
             check(job);
+            load(job);
             ChunkPos chunk;
-            while (budget > 0 && (chunk = job.ready.poll()) != null) {
-                paint(job, data, job.level.getChunk(chunk.x, chunk.z));
-                budget--;
+            while (budget > 0 && (chunk = job.loaded.poll()) != null) {
+                LevelChunk loaded = job.level.getChunkSource().getChunkNow(chunk.x, chunk.z);
+                if (loaded != null) {
+                    paint(job, data, loaded);
+                    budget--;
+                } else if (!job.tickets.contains(chunk)) {
+                    // The chunk was loaded at the check, but it unloaded before its paint: it loads again, with a ticket.
+                    job.ready.add(chunk);
+                }
+                job.release(chunk);
             }
             if (job.done()) {
                 iterator.remove();
             }
+        }
+    }
+
+    /**
+     * Starts the loads of the ready chunks. A loaded chunk goes to the paint now. Another chunk gets a ticket, then
+     * loads on the threads of the game: the server thread does not wait for the disk.
+     */
+    private static void load(Job job) {
+        ChunkPos chunk;
+        while (job.loading < LOADS && (chunk = job.ready.poll()) != null) {
+            ServerChunkCache chunks = job.level.getChunkSource();
+            if (chunks.getChunkNow(chunk.x, chunk.z) != null) {
+                job.loaded.add(chunk);
+                continue;
+            }
+            ChunkPos pos = chunk;
+            chunks.addRegionTicket(TICKET, pos, 0, pos);
+            job.tickets.add(pos);
+            job.loading++;
+            // The load reports its end in the queues of the job: the future is not needed.
+            var unused = chunks.getChunkFuture(pos.x, pos.z, ChunkStatus.FULL, true)
+                    .whenComplete((result, error) -> job.level.getServer().execute(() -> {
+                        job.loading--;
+                        job.loaded.add(pos);
+                    }));
         }
     }
 

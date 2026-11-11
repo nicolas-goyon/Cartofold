@@ -16,16 +16,15 @@ import org.joml.Matrix4f;
 public final class MapShapes {
     private static final int ARROW = 0xFFFFFFFF;
     private static final int ARROW_OUTLINE = 0xFF000000;
-    /** The half of the free space in the mark of a selected marker, in units of the screen. */
-    private static final float SELECTION = 6f;
 
     private MapShapes() {
     }
 
     /** Draws the arrow of the player at a point, turned clockwise by an angle. With an angle of 0, it points to the top. */
     public static void drawArrow(GuiGraphics graphics, float x, float y, float angle) {
+        float scale = (float) CartofoldClientConfig.markerSizes().arrow();
         Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0)
-                .rotateZ(angle);
+                .rotateZ(angle).scale(scale, scale, 1);
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
         arrow(buffer, matrix, 1.6f, ARROW_OUTLINE);
         arrow(buffer, matrix, 1f, ARROW);
@@ -51,22 +50,34 @@ public final class MapShapes {
      * @param color the color, in RGB
      */
     public static void drawMarker(GuiGraphics graphics, float x, float y, int color, boolean death) {
-        Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
-        if (!death) {
-            matrix.rotateZ((float) (Math.PI / 4));
-        }
+        float scale = (float) CartofoldClientConfig.markerSizes().diamond();
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
-        square(buffer, matrix, 4f, ARROW_OUTLINE);
-        square(buffer, matrix, 2.8f, 0xFF000000 | color);
+        marker(buffer, new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0).scale(scale, scale, 1), color,
+                death, 1);
         draw(buffer);
+    }
+
+    /**
+     * Adds the marker of a waypoint at the origin of a matrix to a buffer of triangles.
+     *
+     * @param color   the color, in RGB
+     * @param opacity the opacity, from 0 (invisible) to 1
+     */
+    static void marker(BufferBuilder buffer, Matrix4f matrix, int color, boolean death, float opacity) {
+        int alpha = Math.round(Math.clamp(opacity, 0, 1) * 255) << 24;
+        Matrix4f turned = death ? matrix : new Matrix4f(matrix).rotateZ((float) (Math.PI / 4));
+        // The outline is black: only its opacity changes.
+        square(buffer, turned, 4f, alpha);
+        square(buffer, turned, 2.8f, alpha | (color & 0xFFFFFF));
     }
 
     /** Draws the mark of a selected marker at a point: a white frame around the marker. */
     public static void drawSelection(GuiGraphics graphics, float x, float y) {
         Matrix4f matrix = new Matrix4f(graphics.pose().last().pose()).translate(x, y, 0);
         BufferBuilder buffer = begin(VertexFormat.Mode.TRIANGLES);
-        frame(buffer, matrix, SELECTION, SELECTION + 2.2f, ARROW_OUTLINE);
-        frame(buffer, matrix, SELECTION + 0.8f, SELECTION + 1.4f, ARROW);
+        float selection = (float) CartofoldClientConfig.markerSizes().selection();
+        frame(buffer, matrix, selection, selection + 1.4f, ARROW_OUTLINE);
+        frame(buffer, matrix, selection + 0.5f, selection + 0.9f, ARROW);
         draw(buffer);
     }
 
@@ -78,7 +89,8 @@ public final class MapShapes {
         rectangle(buffer, matrix, inner, -inner, outer, inner, color);
     }
 
-    private static void rectangle(BufferBuilder buffer, Matrix4f matrix, float minX, float minY, float maxX, float maxY,
+    /** Adds a rectangle to a buffer of triangles. */
+    static void rectangle(BufferBuilder buffer, Matrix4f matrix, float minX, float minY, float maxX, float maxY,
             int color) {
         quad(buffer, matrix, new double[] {minX, minY}, new double[] {minX, maxY}, new double[] {maxX, maxY},
                 new double[] {maxX, minY}, color);

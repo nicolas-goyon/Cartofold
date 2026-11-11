@@ -30,6 +30,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # The history and the tags, for the version.
           fetch-depth: 0
 
@@ -38,7 +39,7 @@ jobs:
         if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           TITLE: ${{ github.event.pull_request.title }}
-        run: python3 scripts/version.py check-title "$TITLE"
+        run: python3 scripts/version.py check-title -- "$TITLE"
 
       # In a stack, the open pull requests below this pull request go into develop before it: their titles come
       # before its title.
@@ -104,6 +105,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # The history and the tags, for the version.
           fetch-depth: 0
 
