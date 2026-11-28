@@ -24,7 +24,7 @@ Only `api`, `api.client` and `view.MapProjection` are part of the public API.
 
 ## Data flow
 
-1. `ExplorationService` puts the loaded chunks near each player in the mask of this player. Chunks with no recent sample go to a queue.
+1. `ExplorationService` puts the loaded chunks near each player in the mask of this player. Chunks with no recent sample go to a queue. With a spyglass, the radius is larger (`SpyglassMaps.explorationRadius`). Past the normal radius, the service adds the loaded chunks and the chunks with a sample in an existing region.
 2. `ColumnSampler` reads the chunks of the queue: 8 chunks at most each tick.
 3. The client tells the regions of its open views with `ExplorationRequestPayload`: 128 regions at most for each slice, and 4 slices at most.
 4. `ExplorationSync` sends the explored chunks of these regions: 32 chunks at most each tick for each player.

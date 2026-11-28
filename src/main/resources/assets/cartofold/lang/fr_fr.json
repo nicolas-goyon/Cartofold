@@ -210,5 +210,9 @@
   "cartofold.configuration.server.entities.same_team_only.tooltip": "Les cartes d'un joueur affichent seulement les autres joueurs de son équipe. Un joueur sans équipe ne voit aucun autre joueur.",
   "cartofold.configuration.entities.hidden_kinds.tooltip": "Les identifiants des types d'entités des autres mods que les cartes n'affichent pas, par exemple mymod:caravans.",
   "cartofold.configuration.entities.world_map": "Carte du monde",
-  "cartofold.configuration.entities.world_map.tooltip": "Les entités chargées sur la carte du monde."
+  "cartofold.configuration.entities.world_map.tooltip": "Les entités chargées sur la carte du monde.",
+  "cartofold.configuration.server.exploration": "Exploration",
+  "cartofold.configuration.server.exploration.tooltip": "L'exploration des cartes.",
+  "cartofold.configuration.server.exploration.spyglass_factor": "Facteur de la longue-vue",
+  "cartofold.configuration.server.exploration.spyglass_factor.tooltip": "Un joueur avec une longue-vue dans l'inventaire explore un rayon ce nombre de fois plus grand. Au-delà du rayon normal, seuls comptent les chunks que le serveur a en mémoire et les chunks avec des données de carte. La longue-vue ne charge et ne génère jamais de chunk."
 }

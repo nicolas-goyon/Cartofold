@@ -1,5 +1,6 @@
 package io.github.nicolasgoyon.cartofold;
 
+import io.github.nicolasgoyon.cartofold.paper.SpyglassMaps;
 import io.github.nicolasgoyon.cartofold.view.EntityKind;
 import java.util.EnumMap;
 import java.util.Map;
@@ -15,6 +16,11 @@ public final class CartofoldServerConfig {
     public static final Map<EntityKind, ModConfigSpec.BooleanValue> ENTITIES = new EnumMap<>(EntityKind.class);
     /** True if the maps show only the players of the team of the player. */
     public static final ModConfigSpec.BooleanValue SAME_TEAM_ONLY;
+    /**
+     * A player with a spyglass explores a radius this number of times larger (see
+     * {@link io.github.nicolasgoyon.cartofold.paper.SpyglassMaps#explorationFactor}).
+     */
+    public static final ModConfigSpec.DoubleValue SPYGLASS_FACTOR;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -28,6 +34,15 @@ public final class CartofoldServerConfig {
         SAME_TEAM_ONLY = builder.comment("The maps of a player show only the other players of its team. A player with no"
                 + " team sees no other player.").translation("cartofold.configuration.server.entities.same_team_only")
                 .define("sameTeamOnly", false);
+        builder.pop();
+        builder.comment("The exploration of the maps.").translation("cartofold.configuration.server.exploration")
+                .push("exploration");
+        SPYGLASS_FACTOR = builder.comment("A player with a spyglass in the inventory explores a radius this number of"
+                + " times larger. Past the normal radius, only the chunks that the server has in memory and the chunks"
+                + " with map data count. The spyglass never loads or generates a chunk.")
+                .translation("cartofold.configuration.server.exploration.spyglass_factor")
+                .defineInRange("spyglassFactor", SpyglassMaps.DEFAULT_FACTOR, SpyglassMaps.MIN_FACTOR,
+                        SpyglassMaps.MAX_FACTOR);
         builder.pop();
         SPEC = builder.build();
     }

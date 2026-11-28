@@ -9,6 +9,7 @@ import io.github.nicolasgoyon.cartofold.data.MapSlice;
 import io.github.nicolasgoyon.cartofold.data.RegionPos;
 import io.github.nicolasgoyon.cartofold.network.ExplorationChunksPayload;
 import io.github.nicolasgoyon.cartofold.network.ExplorationRequestPayload;
+import io.github.nicolasgoyon.cartofold.paper.SpyglassMaps;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.io.IOException;
@@ -55,9 +56,12 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * The exploration of the players, on the server.
  *
  * <ul>
- *   <li>Every {@link #CHECK_TICKS} ticks, the chunks near each player (the view distance of the server, at most
- *       {@link #MAX_RADIUS} chunks) are explored by the player: its mask gets their columns. Only the loaded chunks
- *       count: the exploration never loads or generates a chunk.</li>
+ *   <li>Every {@link #CHECK_TICKS} ticks, each player explores the chunks near it (see {@link #normalRadius}): its
+ *       mask gets their columns. Only the loaded chunks count: the exploration never loads or generates a chunk.</li>
+ *   <li>A player with a spyglass explores a larger radius (see {@link #discoveryRadius}). Past the normal radius, a
+ *       chunk counts when the server has it in memory, or when its region has a sample of the chunk. The server keeps
+ *       in memory the chunks near the players at the view distance plus 2 chunks, and the chunks with a ticket (for
+ *       example the forced chunks).</li>
  *   <li>An explored chunk with no sample, or with a sample older than {@link #RESAMPLE_TICKS} ticks, goes to the queue
  *       of the samples. The server reads {@link #SAMPLES_PER_TICK} chunks of the queue at most each tick (see
  *       {@link ColumnSampler}).</li>
@@ -270,12 +274,31 @@ public final class ExplorationService {
      */
     public void explore(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        int radius = Math.min(MAX_RADIUS, server.getPlayerList().getViewDistance());
-        explore(player, ExplorationKey.surface(level.dimension()), radius);
+        int radius = normalRadius();
+        explore(player, ExplorationKey.surface(level.dimension()), radius, discoveryRadius(player));
         if (underground(player)) {
-            explore(player, new ExplorationKey(level.dimension(), MapSlice.caveAt(player.getBlockY())),
-                    Math.min(CAVE_RADIUS, radius));
+            int caves = Math.min(CAVE_RADIUS, radius);
+            explore(player, new ExplorationKey(level.dimension(), MapSlice.caveAt(player.getBlockY())), caves, caves);
         }
+    }
+
+    /** The radius of the exploration of the surface with no spyglass: the view distance, {@link #MAX_RADIUS} at most. */
+    public int normalRadius() {
+        return Math.min(MAX_RADIUS, server.getPlayerList().getViewDistance());
+    }
+
+    /**
+     * The radius of the exploration of the surface around a player. With a spyglass in the inventory (see
+     * {@link SpyglassMaps#hasSpyglass}), it is the normal radius times the factor of the server (see
+     * {@link SpyglassMaps#explorationFactor}). The caves do not use the spyglass.
+     *
+     * @param player the player
+     * @return the radius, in chunks
+     */
+    public int discoveryRadius(ServerPlayer player) {
+        int radius = normalRadius();
+        return SpyglassMaps.hasSpyglass(player)
+                ? SpyglassMaps.explorationRadius(radius, SpyglassMaps.explorationFactor()) : radius;
     }
 
     /**
@@ -291,20 +314,29 @@ public final class ExplorationService {
                 && level.getBrightness(LightLayer.SKY, BlockPos.containing(player.getEyePosition())) <= CAVE_SKY_LIGHT;
     }
 
-    /** Explores the loaded chunks of a slice within a radius of a player. */
-    private void explore(ServerPlayer player, ExplorationKey key, int radius) {
+    /**
+     * Explores the chunks of a slice around a player. Within {@code radius}, the loaded chunks count. Between
+     * {@code radius} and {@code outer}, the loaded chunks count, and also the chunks with a sample in an existing
+     * region. These chunks do not go to the queue: the sample needs a loaded chunk.
+     */
+    private void explore(ServerPlayer player, ExplorationKey key, int radius, int outer) {
         ServerLevel level = player.serverLevel();
         LevelData data = data(key);
         long now = now();
         ChunkPos center = player.chunkPosition();
-        for (int dz = -radius; dz <= radius; dz++) {
-            for (int dx = -radius; dx <= radius; dx++) {
+        // The existing regions past the normal radius, or null for a region with no data: one read for each region.
+        Map<RegionPos, MapRegion> far = new HashMap<>();
+        for (int dz = -outer; dz <= outer; dz++) {
+            for (int dx = -outer; dx <= outer; dx++) {
                 int chunkX = center.x + dx;
                 int chunkZ = center.z + dz;
+                RegionPos pos = RegionPos.ofChunk(chunkX, chunkZ);
                 if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) > radius) {
+                        exploreSampled(player, key, far, pos, chunkX, chunkZ, now);
+                    }
                     continue;
                 }
-                RegionPos pos = RegionPos.ofChunk(chunkX, chunkZ);
                 if (mask(key, player.getUUID(), pos, now).markChunk(chunkX, chunkZ)) {
                     sync.explored(player.getUUID(), key, new ChunkPos(chunkX, chunkZ), now);
                 }
@@ -313,6 +345,17 @@ public final class ExplorationService {
                     data.queue.add(new ChunkPos(chunkX, chunkZ));
                 }
             }
+        }
+    }
+
+    /** Explores a chunk that is not loaded when its region has a sample of the chunk. It creates no new region. */
+    private void exploreSampled(ServerPlayer player, ExplorationKey key, Map<RegionPos, MapRegion> far, RegionPos pos,
+            int chunkX, int chunkZ, long now) {
+        MapRegion region = far.containsKey(pos) ? far.get(pos) : existingRegion(key, pos, now);
+        far.put(pos, region);
+        if (region != null && region.sampled(chunkX, chunkZ) != MapRegion.NEVER
+                && mask(key, player.getUUID(), pos, now).markChunk(chunkX, chunkZ)) {
+            sync.explored(player.getUUID(), key, new ChunkPos(chunkX, chunkZ), now);
         }
     }
 

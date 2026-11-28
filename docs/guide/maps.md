@@ -4,6 +4,18 @@ The maps show only the places that you explored. The server records the chunks n
 
 Your game keeps a copy of the map of each world in the folder `cartofold/cache` of the game. When you join the world again, the map comes from this copy at once. The server then sends only the places that changed.
 
+## Spyglass
+
+Keep a spyglass in your inventory to explore farther. You do not need to use it. The server explores the land 2 times farther from you (the server can change this factor, see the [settings of the server](settings.md#settings-of-the-server)).
+
+The server never loads new land for the spyglass. Past the normal distance, you explore only these places:
+
+- The land at the edge of the view of the server: 2 chunks more than the view distance.
+- The land near the other players, and the land that the server keeps loaded (the forced chunks, for example).
+- The land that a player of the server explored before. The map shows this land as it was at this time.
+
+The normal distance is the view distance of the server, 12 chunks at most. With the default view distance (10 chunks), the spyglass thus gives 12 chunks in a new place. It gives 20 chunks in a place that other players explored.
+
 ## Minimap
 
 The minimap shows the map around you, the north, your arrow and your coordinates.

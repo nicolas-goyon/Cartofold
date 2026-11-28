@@ -104,5 +104,8 @@ The file of the server is `serverconfig/cartofold-server.toml`, in the folder of
 | `entities.villagers` | true | Let the maps of the players show the villagers and the wandering traders. |
 | `entities.objects` | true | Let the maps of the players show the items and the vehicles. |
 | `entities.sameTeamOnly` | false | The maps of a player show only the other players of its team (`/team`). A player with no team sees no other player. |
+| `exploration.spyglassFactor` | 2.0 | A player with a spyglass in the inventory explores a radius this number of times larger, from 1 to 4. 1 gives the spyglass no effect. |
 
 A setting at false hides this kind of entity on the maps of all the players, for a fair game. A changed client can still see the entities near its player.
+
+The spyglass never loads or generates a chunk. The normal radius is the view distance, 12 chunks at most. Past this radius, a player with a spyglass explores the chunks that the server has in memory. It also explores the chunks with map data of Cartofold, and no other chunk (see [Spyglass](maps.md#spyglass)). A larger view distance thus gives the spyglass more land. Each second, the server reads the factor squared times more chunks for each player with a spyglass. These reads are in memory. For each region of Cartofold that is not in memory, the server checks the disk once each second.

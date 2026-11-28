@@ -16,7 +16,7 @@ Use the empty survey map. You get a survey map around your position.
 
 ## Explore
 
-A survey map in your hand explores the land within 128 blocks of you. A spyglass in your inventory makes this distance 3 times larger.
+A survey map in your hand explores the land within 128 blocks of you. A spyglass in your inventory makes this distance 3 times larger. The spyglass also makes the exploration of the land larger (see [Spyglass](maps.md#spyglass)).
 
 The map shows the layers of the other mods on its explored pixels.
 
